@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Tenor Calculator - VexFlow Natural Beam Fixed</title>
 <script src="https://unpkg.com/vexflow@4.2.2/releases/vexflow-debug.js"></script>
 <style>
@@ -12,7 +13,7 @@
   --score:#fbfbf7; --hot:#e34848;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text);user-select:none;-webkit-user-select:none}
+body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text);user-select:none;-webkit-user-select:none;-webkit-text-size-adjust:100%}
 input,select{user-select:text;-webkit-user-select:text}
 #app{padding:14px}
 .toolbar{display:grid;grid-template-rows:auto auto auto auto auto;gap:8px;margin-bottom:12px}
@@ -22,7 +23,7 @@ label,.group-label{color:var(--muted);font-size:12px;margin-left:4px}
 input,select{background:#101217;color:var(--text);border:1px solid #3a4250;border-radius:9px;padding:7px 9px;font-size:14px;outline:none}
 input:focus,select:focus{border-color:var(--accent)}
 #titleInput{width:260px}
-button{cursor:pointer;border:1px solid #424a58;background:var(--panel2);color:var(--text);border-radius:10px;min-height:34px;padding:7px 11px;font-size:14px}
+button{cursor:pointer;border:1px solid #424a58;background:var(--panel2);color:var(--text);border-radius:10px;min-height:34px;padding:7px 11px;font-size:14px;touch-action:manipulation}
 button:hover{border-color:var(--accent)}
 button.active{background:var(--accent);border-color:var(--accent);color:#07101d;font-weight:bold;box-shadow:0 0 0 2px var(--accentWeak)}
 .note-btn{min-width:46px;padding:3px 8px;line-height:1}
@@ -33,14 +34,14 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 #scoreWrap{background:var(--score);border:1px solid #3d4350;border-radius:12px;overflow:auto;max-height:calc(100vh - 315px)}
 #scoreSurface{position:relative;background:var(--score);min-height:760px}
 #vfCanvas{position:absolute;left:0;top:0}
-#hitLayer{position:absolute;left:0;top:0;pointer-events:auto}
-.measure-hit{position:absolute;background:rgba(255,255,255,.001);border:0;pointer-events:auto}
+#hitLayer{position:absolute;left:0;top:0;pointer-events:auto;touch-action:none}
+.measure-hit{position:absolute;background:rgba(255,255,255,.001);border:0;pointer-events:auto;touch-action:none}
 .measure-hit:hover{background:rgba(77,163,255,.04)}
-.event-hit{position:absolute;background:rgba(255,255,255,.001);border-radius:6px;pointer-events:auto}
+.event-hit{position:absolute;background:rgba(255,255,255,.001);border-radius:6px;pointer-events:auto;touch-action:none}
 .event-hit:hover{outline:1px solid rgba(77,163,255,.35)}
 .event-hit.selected{outline:2px solid rgba(227,72,72,.75)}
 .event-hit.multi-selected{outline:2px dashed rgba(227,72,72,.85)}
-.chord-hit{position:absolute;background:rgba(255,255,255,.001);border-radius:5px;pointer-events:auto}
+.chord-hit{position:absolute;background:rgba(255,255,255,.001);border-radius:5px;pointer-events:auto;touch-action:none}
 .chord-hit:hover{outline:1px solid rgba(77,163,255,.45);background:rgba(77,163,255,.05)}
 .chord-hit.selected{outline:2px solid rgba(227,72,72,.8);background:rgba(227,72,72,.08)}
 .selection-box{position:absolute;border:1px dashed rgba(77,163,255,.95);background:rgba(77,163,255,.16);pointer-events:none;z-index:50}
@@ -2771,6 +2772,32 @@ function audioBufferToWavBlob(buffer){
   return new Blob([arrayBuffer], {type:'audio/wav'});
 }
 
+async function saveBlobToDevice(blob, filename){
+  const shareApi = navigator.share && navigator.canShare;
+
+  if(shareApi && typeof File !== 'undefined'){
+    try{
+      const file = new File([blob], filename, {type: blob.type || 'application/octet-stream'});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title: filename});
+        return true;
+      }
+    }catch(err){
+      console.warn('Share fallback failed, trying anchor download.', err);
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  return true;
+}
+
 async function downloadAudioWav(){
   stopPlayback();
   generateHarmony();
@@ -2809,16 +2836,8 @@ async function downloadAudioWav(){
 
     const buffer = await offlineCtx.startRendering();
     const blob = audioBufferToWavBlob(buffer);
-    const url = URL.createObjectURL(blob);
     const safe = (state.title || 'tenor_calculator_audio').replace(/[\/:*?"<>|]/g,'_').trim() || 'tenor_calculator_audio';
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = safe + '.wav';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    await saveBlobToDevice(blob, safe + '.wav');
   }catch(err){
     console.error(err);
     alert('음원 렌더링에 실패했습니다. 콘솔 로그를 확인해 주세요.');
@@ -2830,13 +2849,18 @@ async function downloadAudioWav(){
   }
 }
 
-function play(){
+async function play(){
   stopPlayback();
   generateHarmony();
 
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   const ctx = new AudioContext();
   currentAudioContext = ctx;
+  try{
+    if(ctx.state === 'suspended') await ctx.resume();
+  }catch(err){
+    console.warn('AudioContext resume failed.', err);
+  }
 
   const beatSec = 60 / (state.tempo || 90);
   const start = ctx.currentTime + .08;
@@ -2876,16 +2900,8 @@ function loadBrowser(){
 
 function downloadJson(){
   const blob = new Blob([JSON.stringify({state,nextId}, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
   const safe = (state.title || 'tenor_calculator_song').replace(/[\\/:*?"<>|]/g,'_').trim() || 'tenor_calculator_song';
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = safe+'.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  saveBlobToDevice(blob, safe + '.json');
 }
 
 function uploadJson(file){
