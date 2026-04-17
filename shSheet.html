@@ -27,12 +27,15 @@ button{cursor:pointer;border:1px solid #424a58;background:var(--panel2);color:va
 button:hover{border-color:var(--accent)}
 button.active{background:var(--accent);border-color:var(--accent);color:#07101d;font-weight:bold;box-shadow:0 0 0 2px var(--accentWeak)}
 .note-btn{min-width:46px;padding:3px 8px;line-height:1}
+.duration-btn{font-family:Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:.01em}
+.compact-btn{font-family:Arial,sans-serif;font-size:12px;font-weight:700}
 .transport-btn{min-width:44px;font-size:17px;font-weight:bold}
 .view-btn{min-width:72px;font-weight:bold}
 .chord-preview{padding:7px 12px;border-radius:10px;background:var(--panel3);border:1px solid #475061;color:#78d66f;font-weight:bold;min-width:150px;text-align:center}
 .rhythm-hint{color:var(--muted);font-size:12px;padding:0 6px}
-#scoreWrap{background:var(--score);border:1px solid #3d4350;border-radius:12px;overflow:auto;max-height:calc(100vh - 315px)}
-#scoreSurface{position:relative;background:var(--score);min-height:760px}
+#scoreWrap{position:relative;background:var(--score);border:1px solid #3d4350;border-radius:12px;overflow:auto;max-height:calc(100vh - 315px);touch-action:none}
+#scoreViewport{position:relative;width:100%;height:100%;min-height:760px;background:var(--score);overflow:hidden}
+#scoreSurface{position:relative;background:var(--score);min-height:760px;transform-origin:0 0;will-change:transform}
 #vfCanvas{position:absolute;left:0;top:0}
 #hitLayer{position:absolute;left:0;top:0;pointer-events:auto;touch-action:none}
 .measure-hit{position:absolute;background:rgba(255,255,255,.001);border:0;pointer-events:auto;touch-action:none}
@@ -75,15 +78,18 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
   input,select{font-size:16px;padding:8px 9px}
   button{min-height:40px;padding:8px 10px}
   .note-btn{min-width:42px}
+  .duration-btn{font-size:11px}
   .view-btn{min-width:60px}
   .transport-btn{min-width:42px}
   #titleInput{width:min(100%, 220px)}
   #scoreWrap{height:64vh;max-height:none;min-height:420px}
+  #scoreViewport{min-height:420px}
 }
 @media (max-width: 520px){
   #app{padding:8px}
   .row{padding:7px}
   #scoreWrap{height:68vh;min-height:460px}
+  #scoreViewport{min-height:460px}
 }
 </style>
 </head>
@@ -120,44 +126,44 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <div class="row-title">Notes</div>
 
       <span class="group-label">Edit</span>
-      <button id="pencilModeBtn" class="note-btn active" title="연필 모드: 오선지 클릭으로 음표 추가 / 기존 음표 드래그 수정">✎</button>
-      <button id="selectModeBtn" class="note-btn" title="선택 모드: 음표 선택만, 추가/수정 없음">↖</button>
-      <button id="undoBtn" class="note-btn" title="Undo">↶</button>
-      <button id="redoBtn" class="note-btn" title="Redo">↷</button>
+      <button id="pencilModeBtn" class="note-btn compact-btn active" title="연필 모드: 오선지 클릭으로 음표 추가 / 기존 음표 드래그 수정">Draw</button>
+      <button id="selectModeBtn" class="note-btn compact-btn" title="선택 모드: 음표 선택만, 추가/수정 없음">Sel</button>
+      <button id="undoBtn" class="note-btn compact-btn" title="Undo">Undo</button>
+      <button id="redoBtn" class="note-btn compact-btn" title="Redo">Redo</button>
 
       <span class="group-label">Note</span>
-      <button class="note-btn note-length" data-duration="4">𝅝</button>
-      <button class="note-btn note-length" data-duration="2">𝅗𝅥</button>
-      <button class="note-btn note-length active" data-duration="1">♩</button>
-      <button class="note-btn note-length" data-duration="0.5">♪</button>
-      <button class="note-btn note-length" data-duration="0.25">𝅘𝅥𝅯</button>
-      <button class="note-btn note-length" data-duration="0.125">𝅘𝅥𝅰</button>
+      <button class="note-btn duration-btn note-length" data-duration="4">1n</button>
+      <button class="note-btn duration-btn note-length" data-duration="2">2n</button>
+      <button class="note-btn duration-btn note-length active" data-duration="1">4n</button>
+      <button class="note-btn duration-btn note-length" data-duration="0.5">8n</button>
+      <button class="note-btn duration-btn note-length" data-duration="0.25">16n</button>
+      <button class="note-btn duration-btn note-length" data-duration="0.125">32n</button>
 
       <span class="group-label">Rest</span>
-      <button class="note-btn rest-length" data-duration="4">𝄻</button>
-      <button class="note-btn rest-length" data-duration="2">𝄼</button>
-      <button class="note-btn rest-length" data-duration="1">𝄽</button>
-      <button class="note-btn rest-length" data-duration="0.5">𝄾</button>
-      <button class="note-btn rest-length" data-duration="0.25">𝄿</button>
-      <button class="note-btn rest-length" data-duration="0.125">𝅀</button>
+      <button class="note-btn duration-btn rest-length" data-duration="4">R1</button>
+      <button class="note-btn duration-btn rest-length" data-duration="2">R2</button>
+      <button class="note-btn duration-btn rest-length" data-duration="1">R4</button>
+      <button class="note-btn duration-btn rest-length" data-duration="0.5">R8</button>
+      <button class="note-btn duration-btn rest-length" data-duration="0.25">R16</button>
+      <button class="note-btn duration-btn rest-length" data-duration="0.125">R32</button>
 
       <span class="group-label">Dot</span>
-      <button class="note-btn dot-mode active" data-dot="0">—</button>
-      <button class="note-btn dot-mode" data-dot="1">·</button>
-      <button class="note-btn dot-mode" data-dot="2">··</button>
+      <button class="note-btn compact-btn dot-mode active" data-dot="0">Base</button>
+      <button class="note-btn compact-btn dot-mode" data-dot="1">Dot</button>
+      <button class="note-btn compact-btn dot-mode" data-dot="2">Dbl</button>
 
       <span class="group-label">Tuplet</span>
       <button id="tripletBtn" class="note-btn" title="셋잇단음표">3</button>
 
       <span class="group-label">Accidental</span>
       <button class="note-btn accidental-mode active" data-accidental="auto">Auto</button>
-      <button class="note-btn accidental-mode" data-accidental="natural">♮</button>
-      <button class="note-btn accidental-mode" data-accidental="sharp">♯</button>
-      <button class="note-btn accidental-mode" data-accidental="flat">♭</button>
+      <button class="note-btn compact-btn accidental-mode" data-accidental="natural">Nat</button>
+      <button class="note-btn compact-btn accidental-mode" data-accidental="sharp">#</button>
+      <button class="note-btn compact-btn accidental-mode" data-accidental="flat">b</button>
 
       <span class="group-label">Mark</span>
-      <button id="tieToggleBtn" class="note-btn" title="선택 음표와 다음 음표를 연결선으로 연결합니다. 같은 음이면 붙임줄, 다른 음이면 이음줄로 처리합니다.">⌒</button>
-      <button id="fermataToggleBtn" class="note-btn" title="늘임표 / Fermata">𝄐</button>
+      <button id="tieToggleBtn" class="note-btn compact-btn" title="선택 음표와 다음 음표를 연결선으로 연결합니다. 같은 음이면 붙임줄, 다른 음이면 이음줄로 처리합니다.">Tie</button>
+      <button id="fermataToggleBtn" class="note-btn compact-btn" title="늘임표 / Fermata">Hold</button>
 
       <button id="deleteSelectedBtn">선택 삭제</button>
       <button id="deleteBtn">마지막 삭제</button>
@@ -242,9 +248,9 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <label>Master Vol</label>
       <input id="masterVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.82" style="width:120px;" />
       <span id="masterVolumeValue" style="color:var(--muted);font-size:12px;">82%</span>
-      <button id="rewindBtn" class="transport-btn">⏮</button>
-      <button id="playBtn" class="transport-btn">▶</button>
-      <button id="stopBtn" class="transport-btn">■</button>
+      <button id="rewindBtn" class="transport-btn compact-btn">|&lt;</button>
+      <button id="playBtn" class="transport-btn compact-btn">Play</button>
+      <button id="stopBtn" class="transport-btn compact-btn">Stop</button>
       <button id="downloadAudioBtn">WAV 다운로드</button>
     </div>
 
@@ -259,9 +265,11 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
   </div>
 
   <div id="scoreWrap">
-    <div id="scoreSurface">
-      <div id="vfCanvas"></div>
-      <div id="hitLayer"></div>
+    <div id="scoreViewport">
+      <div id="scoreSurface">
+        <div id="vfCanvas"></div>
+        <div id="hitLayer"></div>
+      </div>
     </div>
   </div>
 
@@ -275,6 +283,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 let VF = null;
 
 const scoreSurface = document.getElementById('scoreSurface');
+const scoreViewport = document.getElementById('scoreViewport');
 const vfCanvas = document.getElementById('vfCanvas');
 const hitLayer = document.getElementById('hitLayer');
 const scoreWrap = document.getElementById('scoreWrap');
@@ -386,6 +395,24 @@ let copiedEvents = [];
 let copiedChordItems = [];
 let copiedMode = 'events';
 let resizeTimer = null;
+let viewState = {
+  baseScale:1,
+  userScale:1,
+  scale:1,
+  panX:0,
+  panY:0,
+  contentWidth:1040,
+  contentHeight:760,
+  userInteracted:false,
+  gestureActive:false
+};
+let touchGesture = {
+  active:false,
+  startDistance:0,
+  startUserScale:1,
+  contentX:0,
+  contentY:0
+};
 
 function mod(n,m){ return ((n%m)+m)%m; }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
@@ -472,6 +499,128 @@ function layoutMetrics(){
     rightPad: compactMobile ? 18 : (mobile ? 28 : DESKTOP_RIGHT_PAD),
     minScoreWidth: compactMobile ? Math.max(viewportWidth - 16, 320) : (mobile ? Math.max(viewportWidth - 20, 420) : 1040)
   };
+}
+
+function viewportSize(){
+  return {
+    width: Math.max(scoreWrap ? scoreWrap.clientWidth : 0, 320),
+    height: Math.max(scoreWrap ? scoreWrap.clientHeight : 0, 320)
+  };
+}
+
+function fitBaseScale(contentWidth){
+  const {width} = viewportSize();
+  if(!contentWidth) return 1;
+  return clamp((width - 6) / contentWidth, 0.55, 1);
+}
+
+function clampViewPan(){
+  const {width: viewportW, height: viewportH} = viewportSize();
+  const scaledW = viewState.contentWidth * viewState.scale;
+  const scaledH = viewState.contentHeight * viewState.scale;
+
+  if(scaledW <= viewportW){
+    viewState.panX = Math.round((viewportW - scaledW) / 2);
+  }else{
+    viewState.panX = clamp(viewState.panX, viewportW - scaledW, 0);
+  }
+
+  if(scaledH <= viewportH){
+    viewState.panY = Math.round((viewportH - scaledH) / 2);
+  }else{
+    viewState.panY = clamp(viewState.panY, viewportH - scaledH, 0);
+  }
+}
+
+function applyViewTransform(){
+  if(!scoreSurface) return;
+  const s = viewState.scale || 1;
+  scoreSurface.style.transform = `matrix(${s},0,0,${s},${Math.round(viewState.panX)},${Math.round(viewState.panY)})`;
+}
+
+function updateViewState(contentWidth, contentHeight){
+  viewState.contentWidth = contentWidth;
+  viewState.contentHeight = contentHeight;
+  viewState.baseScale = fitBaseScale(contentWidth);
+
+  if(!viewState.userInteracted){
+    viewState.userScale = 1;
+    viewState.panX = 0;
+    viewState.panY = 0;
+  }
+
+  viewState.scale = clamp(viewState.baseScale * viewState.userScale, 0.55, 4.5);
+  clampViewPan();
+  applyViewTransform();
+}
+
+function resetResponsiveView(){
+  viewState.userInteracted = false;
+  viewState.userScale = 1;
+  viewState.panX = 0;
+  viewState.panY = 0;
+}
+
+function clientPointToScore(clientX, clientY){
+  const rect = scoreSurface.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left) / (viewState.scale || 1),
+    y: (clientY - rect.top) / (viewState.scale || 1)
+  };
+}
+
+function touchDistance(t1, t2){
+  const dx = t2.clientX - t1.clientX;
+  const dy = t2.clientY - t1.clientY;
+  return Math.hypot(dx, dy);
+}
+
+function touchCenter(t1, t2){
+  return {
+    x: (t1.clientX + t2.clientX) / 2,
+    y: (t1.clientY + t2.clientY) / 2
+  };
+}
+
+function beginTouchGesture(touches){
+  if(touches.length < 2) return;
+  const t1 = touches[0];
+  const t2 = touches[1];
+  const center = touchCenter(t1, t2);
+  const point = clientPointToScore(center.x, center.y);
+
+  touchGesture.active = true;
+  touchGesture.startDistance = Math.max(1, touchDistance(t1, t2));
+  touchGesture.startUserScale = viewState.userScale;
+  touchGesture.contentX = point.x;
+  touchGesture.contentY = point.y;
+  viewState.gestureActive = true;
+  drag = {active:false,id:null,historyPushed:false};
+  selectionDrag.active = false;
+}
+
+function moveTouchGesture(touches){
+  if(!touchGesture.active || touches.length < 2) return;
+
+  const t1 = touches[0];
+  const t2 = touches[1];
+  const center = touchCenter(t1, t2);
+  const distance = Math.max(1, touchDistance(t1, t2));
+  const wrapRect = scoreWrap.getBoundingClientRect();
+  const ratio = distance / Math.max(1, touchGesture.startDistance);
+
+  viewState.userInteracted = true;
+  viewState.userScale = clamp(touchGesture.startUserScale * ratio, 1, 4.5 / Math.max(viewState.baseScale, 0.55));
+  viewState.scale = clamp(viewState.baseScale * viewState.userScale, 0.55, 4.5);
+  viewState.panX = center.x - wrapRect.left - touchGesture.contentX * viewState.scale;
+  viewState.panY = center.y - wrapRect.top - touchGesture.contentY * viewState.scale;
+  clampViewPan();
+  applyViewTransform();
+}
+
+function endTouchGesture(){
+  touchGesture.active = false;
+  viewState.gestureActive = false;
 }
 
 function eventById(id){
@@ -1691,10 +1840,12 @@ function render(){
 
   scoreSurface.style.width = width+'px';
   scoreSurface.style.height = height+'px';
+  scoreViewport.style.height = '100%';
   vfCanvas.style.width = width+'px';
   vfCanvas.style.height = height+'px';
   hitLayer.style.width = width+'px';
   hitLayer.style.height = height+'px';
+  updateViewState(width, height);
 
   const renderer = new VF.Renderer(vfCanvas, VF.Renderer.Backends.SVG);
   renderer.resize(width,height);
@@ -3134,10 +3285,33 @@ function initEvents(){
     if(f) uploadJson(f);
   });
 
+  scoreWrap.addEventListener('touchstart', e=>{
+    if(e.touches.length >= 2){
+      beginTouchGesture(e.touches);
+      e.preventDefault();
+    }
+  }, {passive:false});
+
+  scoreWrap.addEventListener('touchmove', e=>{
+    if(e.touches.length >= 2){
+      moveTouchGesture(e.touches);
+      e.preventDefault();
+    }
+  }, {passive:false});
+
+  scoreWrap.addEventListener('touchend', e=>{
+    if(e.touches.length < 2) endTouchGesture();
+  }, {passive:false});
+
+  scoreWrap.addEventListener('touchcancel', ()=>{
+    endTouchGesture();
+  }, {passive:false});
+
   hitLayer.addEventListener('pointerdown', e=>{
-    const rect = scoreSurface.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    if(viewState.gestureActive) return;
+    const point = clientPointToScore(e.clientX, e.clientY);
+    const x = point.x;
+    const y = point.y;
     const additive = !!(e.ctrlKey || e.metaKey || e.shiftKey);
 
     const chordHit = findChordHit(x,y);
@@ -3197,9 +3371,10 @@ function initEvents(){
   });
 
   hitLayer.addEventListener('pointermove', e=>{
-    const rect = scoreSurface.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    if(viewState.gestureActive) return;
+    const point = clientPointToScore(e.clientX, e.clientY);
+    const x = point.x;
+    const y = point.y;
 
     if(selectionDrag.active){
       selectionDrag.lastX = x;
@@ -3230,6 +3405,7 @@ function initEvents(){
   });
 
   hitLayer.addEventListener('pointerup', e=>{
+    if(viewState.gestureActive) return;
     if(selectionDrag.active){
       const dx = Math.abs(selectionDrag.lastX - selectionDrag.startX);
       const dy = Math.abs(selectionDrag.lastY - selectionDrag.startY);
@@ -3297,6 +3473,7 @@ function initEvents(){
 function scheduleResponsiveRender(){
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(()=>{
+    resetResponsiveView();
     if(VF) render();
   }, 80);
 }
