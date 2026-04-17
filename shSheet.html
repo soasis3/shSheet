@@ -1,0 +1,3220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>Tenor Calculator - VexFlow Natural Beam Fixed</title>
+<script src="https://unpkg.com/vexflow@4.2.2/releases/vexflow-debug.js"></script>
+<style>
+:root{
+  --bg:#101217; --panel:#1c212a; --panel2:#252b36; --panel3:#11151d;
+  --text:#f2f4f8; --muted:#9aa4b5; --line:#3a4352;
+  --accent:#4da3ff; --accentWeak:rgba(77,163,255,.22);
+  --score:#fbfbf7; --hot:#e34848;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text);user-select:none;-webkit-user-select:none}
+input,select{user-select:text;-webkit-user-select:text}
+#app{padding:14px}
+.toolbar{display:grid;grid-template-rows:auto auto auto auto auto;gap:8px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
+.row-title{min-width:72px;color:var(--muted);font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase}
+label,.group-label{color:var(--muted);font-size:12px;margin-left:4px}
+input,select{background:#101217;color:var(--text);border:1px solid #3a4250;border-radius:9px;padding:7px 9px;font-size:14px;outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+#titleInput{width:260px}
+button{cursor:pointer;border:1px solid #424a58;background:var(--panel2);color:var(--text);border-radius:10px;min-height:34px;padding:7px 11px;font-size:14px}
+button:hover{border-color:var(--accent)}
+button.active{background:var(--accent);border-color:var(--accent);color:#07101d;font-weight:bold;box-shadow:0 0 0 2px var(--accentWeak)}
+.note-btn{min-width:46px;padding:3px 8px;line-height:1}
+.transport-btn{min-width:44px;font-size:17px;font-weight:bold}
+.view-btn{min-width:72px;font-weight:bold}
+.chord-preview{padding:7px 12px;border-radius:10px;background:var(--panel3);border:1px solid #475061;color:#78d66f;font-weight:bold;min-width:150px;text-align:center}
+.rhythm-hint{color:var(--muted);font-size:12px;padding:0 6px}
+#scoreWrap{background:var(--score);border:1px solid #3d4350;border-radius:12px;overflow:auto;max-height:calc(100vh - 315px)}
+#scoreSurface{position:relative;background:var(--score);min-height:760px}
+#vfCanvas{position:absolute;left:0;top:0}
+#hitLayer{position:absolute;left:0;top:0;pointer-events:auto}
+.measure-hit{position:absolute;background:rgba(255,255,255,.001);border:0;pointer-events:auto}
+.measure-hit:hover{background:rgba(77,163,255,.04)}
+.event-hit{position:absolute;background:rgba(255,255,255,.001);border-radius:6px;pointer-events:auto}
+.event-hit:hover{outline:1px solid rgba(77,163,255,.35)}
+.event-hit.selected{outline:2px solid rgba(227,72,72,.75)}
+.event-hit.multi-selected{outline:2px dashed rgba(227,72,72,.85)}
+.chord-hit{position:absolute;background:rgba(255,255,255,.001);border-radius:5px;pointer-events:auto}
+.chord-hit:hover{outline:1px solid rgba(77,163,255,.45);background:rgba(77,163,255,.05)}
+.chord-hit.selected{outline:2px solid rgba(227,72,72,.8);background:rgba(227,72,72,.08)}
+.selection-box{position:absolute;border:1px dashed rgba(77,163,255,.95);background:rgba(77,163,255,.16);pointer-events:none;z-index:50}
+.playhead{position:absolute;border-left:3px solid var(--hot);height:86px;pointer-events:none}
+.score-title{
+  position:absolute;
+  left:0;
+  top:22px;
+  width:100%;
+  text-align:center;
+  color:#111;
+  font:700 24px Arial, sans-serif;
+  pointer-events:none;
+}
+.score-meta{
+  position:absolute;
+  left:42px;
+  top:58px;
+  color:#333;
+  font:400 13px Arial, sans-serif;
+  pointer-events:none;
+}
+#errorBox{display:none;background:#2b1111;color:#ffcaca;border:1px solid #6a2424;border-radius:10px;padding:12px;margin-bottom:12px}
+#status{margin-top:8px;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="errorBox"></div>
+
+  <div class="toolbar">
+    <div class="row">
+      <div class="row-title">Song</div>
+      <label>Title</label><input id="titleInput" type="text" value="Untitled Song" />
+      <label>Key</label>
+      <select id="keyRootSelect">
+        <option>C</option><option>C#</option><option>Db</option><option>D</option><option>D#</option><option>Eb</option>
+        <option>E</option><option>F</option><option>F#</option><option>Gb</option><option>G</option><option>G#</option>
+        <option>Ab</option><option>A</option><option>A#</option><option>Bb</option><option>B</option><option>Cb</option>
+      </select>
+      <select id="keyModeSelect"><option value="major">Major</option><option value="minor">Minor</option></select>
+      <label>Time</label>
+      <select id="timeSelect"><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option><option>9/8</option><option>12/8</option></select>
+      <label>Tempo</label><input id="tempoInput" type="number" min="30" max="240" value="90" style="width:78px" /><span style="color:var(--muted)">BPM</span>
+      <span class="group-label">Harmony Style</span>
+      <select id="styleSelect">
+        <option value="pop">Pop Basic</option>
+        <option value="kpop">K-Pop / Ballad</option>
+        <option value="ccm" selected>CCM Worship</option>
+        <option value="gospel">Contemporary Gospel</option>
+        <option value="tight">Tight 3-Part</option>
+        <option value="open">Open 3-Part</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <div class="row-title">Notes</div>
+
+      <span class="group-label">Edit</span>
+      <button id="pencilModeBtn" class="note-btn active" title="연필 모드: 오선지 클릭으로 음표 추가 / 기존 음표 드래그 수정">✎</button>
+      <button id="selectModeBtn" class="note-btn" title="선택 모드: 음표 선택만, 추가/수정 없음">↖</button>
+      <button id="undoBtn" class="note-btn" title="Undo">↶</button>
+      <button id="redoBtn" class="note-btn" title="Redo">↷</button>
+
+      <span class="group-label">Note</span>
+      <button class="note-btn note-length" data-duration="4">𝅝</button>
+      <button class="note-btn note-length" data-duration="2">𝅗𝅥</button>
+      <button class="note-btn note-length active" data-duration="1">♩</button>
+      <button class="note-btn note-length" data-duration="0.5">♪</button>
+      <button class="note-btn note-length" data-duration="0.25">𝅘𝅥𝅯</button>
+      <button class="note-btn note-length" data-duration="0.125">𝅘𝅥𝅰</button>
+
+      <span class="group-label">Rest</span>
+      <button class="note-btn rest-length" data-duration="4">𝄻</button>
+      <button class="note-btn rest-length" data-duration="2">𝄼</button>
+      <button class="note-btn rest-length" data-duration="1">𝄽</button>
+      <button class="note-btn rest-length" data-duration="0.5">𝄾</button>
+      <button class="note-btn rest-length" data-duration="0.25">𝄿</button>
+      <button class="note-btn rest-length" data-duration="0.125">𝅀</button>
+
+      <span class="group-label">Dot</span>
+      <button class="note-btn dot-mode active" data-dot="0">—</button>
+      <button class="note-btn dot-mode" data-dot="1">·</button>
+      <button class="note-btn dot-mode" data-dot="2">··</button>
+
+      <span class="group-label">Tuplet</span>
+      <button id="tripletBtn" class="note-btn" title="셋잇단음표">3</button>
+
+      <span class="group-label">Accidental</span>
+      <button class="note-btn accidental-mode active" data-accidental="auto">Auto</button>
+      <button class="note-btn accidental-mode" data-accidental="natural">♮</button>
+      <button class="note-btn accidental-mode" data-accidental="sharp">♯</button>
+      <button class="note-btn accidental-mode" data-accidental="flat">♭</button>
+
+      <span class="group-label">Mark</span>
+      <button id="tieToggleBtn" class="note-btn" title="선택 음표와 다음 음표를 연결선으로 연결합니다. 같은 음이면 붙임줄, 다른 음이면 이음줄로 처리합니다.">⌒</button>
+      <button id="fermataToggleBtn" class="note-btn" title="늘임표 / Fermata">𝄐</button>
+
+      <button id="deleteSelectedBtn">선택 삭제</button>
+      <button id="deleteBtn">마지막 삭제</button>
+      <button id="clearBtn">전체 삭제</button>
+    </div>
+
+    <div class="row">
+      <div class="row-title">Chord</div>
+      <label>Root</label>
+      <select id="chordRootSelect"><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>A</option><option>B</option></select>
+      <select id="chordAccSelect"><option value="">♮</option><option value="#">#</option><option value="b">b</option></select>
+      <label>Type</label>
+      <select id="chordTypeSelect">
+        <option value="maj">Major</option><option value="m">Minor</option><option value="dom7">Dominant 7</option>
+        <option value="maj7">Major 7</option><option value="m7">Minor 7</option><option value="mMaj7">Minor Maj7</option>
+        <option value="dim">Diminished</option><option value="dim7">Diminished 7</option><option value="m7b5">Half-dim 7</option>
+        <option value="aug">Augmented</option><option value="sus2">sus2</option><option value="sus4">sus4</option><option value="7sus4">7sus4</option>
+      </select>
+      <label>Ext</label><select id="chordExtSelect"></select>
+      <label>Add</label><select id="chordAddSelect"></select>
+      <label>Alter</label><select id="chordAltSelect"></select>
+      <label>/</label>
+      <select id="slashBassSelect">
+        <option value="">None</option><option>C</option><option>C#</option><option>Db</option><option>D</option><option>D#</option><option>Eb</option>
+        <option>E</option><option>F</option><option>F#</option><option>Gb</option><option>G</option><option>G#</option><option>Ab</option>
+        <option>A</option><option>A#</option><option>Bb</option><option>B</option>
+      </select>
+      <div id="chordPreview" class="chord-preview">C</div>
+      <button id="applyChordBtn">선택에 코드 찍기</button>
+      <button id="removeChordBtn">선택 코드 제거</button>
+    </div>
+
+    <div class="row">
+      <div class="row-title">Play</div>
+      <button class="view-btn voice-view active" data-voice="all">ALL</button>
+      <button class="view-btn voice-view active" data-voice="melody">Melody</button>
+      <button class="view-btn voice-view active" data-voice="tenor">Tenor</button>
+      <button class="view-btn voice-view active" data-voice="alto">Alto</button>
+      <label>M Inst</label>
+      <select id="melodyInstrumentSelect">
+        <option value="piano">Piano</option>
+        <option value="electricPiano">E.Piano</option>
+        <option value="organ">Organ</option>
+        <option value="synthLead">Synth</option>
+        <option value="choir">Choir</option>
+        <option value="strings">Strings</option>
+      </select>
+
+      <label>T Inst</label>
+      <select id="tenorInstrumentSelect">
+        <option value="piano">Piano</option>
+        <option value="electricPiano" selected>E.Piano</option>
+        <option value="organ">Organ</option>
+        <option value="synthLead">Synth</option>
+        <option value="choir">Choir</option>
+        <option value="strings">Strings</option>
+      </select>
+
+      <label>A Inst</label>
+      <select id="altoInstrumentSelect">
+        <option value="piano">Piano</option>
+        <option value="electricPiano">E.Piano</option>
+        <option value="organ" selected>Organ</option>
+        <option value="synthLead">Synth</option>
+        <option value="choir">Choir</option>
+        <option value="strings">Strings</option>
+      </select>
+
+      <button id="chordPadBtn" class="view-btn" title="세컨건반처럼 코드톤 패드를 같이 재생">Chord Pad</button>
+      <label>Pad Inst</label>
+      <select id="chordPadInstrumentSelect">
+        <option value="synthPad" selected>Synth Pad</option>
+        <option value="piano">Piano</option>
+        <option value="electricPiano">E.Piano</option>
+        <option value="organ">Organ</option>
+        <option value="choir">Choir</option>
+        <option value="strings">Strings</option>
+      </select>
+      <label>Pad Vol</label>
+      <input id="chordPadVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.38" style="width:120px;" />
+      <span id="chordPadVolumeValue" style="color:var(--muted);font-size:12px;">38%</span>
+      <label>Master Vol</label>
+      <input id="masterVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.82" style="width:120px;" />
+      <span id="masterVolumeValue" style="color:var(--muted);font-size:12px;">82%</span>
+      <button id="rewindBtn" class="transport-btn">⏮</button>
+      <button id="playBtn" class="transport-btn">▶</button>
+      <button id="stopBtn" class="transport-btn">■</button>
+      <button id="downloadAudioBtn">WAV 다운로드</button>
+    </div>
+
+    <div class="row">
+      <div class="row-title">File</div>
+      <button id="saveBrowserBtn">브라우저 저장</button>
+      <button id="loadBrowserBtn">브라우저 불러오기</button>
+      <button id="downloadJsonBtn">JSON 파일 저장</button>
+      <input id="uploadJsonInput" type="file" accept=".json" style="display:none" />
+      <button id="uploadJsonBtn">JSON 파일 불러오기</button>
+    </div>
+  </div>
+
+  <div id="scoreWrap">
+    <div id="scoreSurface">
+      <div id="vfCanvas"></div>
+      <div id="hitLayer"></div>
+    </div>
+  </div>
+
+  <div id="status"></div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+let VF = null;
+
+const scoreSurface = document.getElementById('scoreSurface');
+const vfCanvas = document.getElementById('vfCanvas');
+const hitLayer = document.getElementById('hitLayer');
+const scoreWrap = document.getElementById('scoreWrap');
+const errorBox = document.getElementById('errorBox');
+const statusEl = document.getElementById('status');
+
+const titleInput = document.getElementById('titleInput');
+const keyRootSelect = document.getElementById('keyRootSelect');
+const keyModeSelect = document.getElementById('keyModeSelect');
+const timeSelect = document.getElementById('timeSelect');
+const tempoInput = document.getElementById('tempoInput');
+const styleSelect = document.getElementById('styleSelect');
+const chordPadVolumeSlider = document.getElementById('chordPadVolumeSlider');
+const chordPadVolumeValue = document.getElementById('chordPadVolumeValue');
+const masterVolumeSlider = document.getElementById('masterVolumeSlider');
+const masterVolumeValue = document.getElementById('masterVolumeValue');
+const melodyInstrumentSelect = document.getElementById('melodyInstrumentSelect');
+const tenorInstrumentSelect = document.getElementById('tenorInstrumentSelect');
+const altoInstrumentSelect = document.getElementById('altoInstrumentSelect');
+const chordPadInstrumentSelect = document.getElementById('chordPadInstrumentSelect');
+
+const chordRootSelect = document.getElementById('chordRootSelect');
+const chordAccSelect = document.getElementById('chordAccSelect');
+const chordTypeSelect = document.getElementById('chordTypeSelect');
+const chordExtSelect = document.getElementById('chordExtSelect');
+const chordAddSelect = document.getElementById('chordAddSelect');
+const chordAltSelect = document.getElementById('chordAltSelect');
+const slashBassSelect = document.getElementById('slashBassSelect');
+const chordPreview = document.getElementById('chordPreview');
+
+const MEASURES_PER_SYSTEM = 4;
+const DEFAULT_SYSTEMS = 4;
+const PAGE_LEFT = 42;
+const STAFF_TOP = 105;
+const SYSTEM_GAP = 150;
+const MEASURE_MIN_W = 145;
+const FIRST_MEASURE_EXTRA_W = 60;
+const EIGHTH_GAP_W = 32;
+const FIXED_NOTE_GAP_W = 28;
+const RIGHT_PAD = 48;
+
+const STAFF_REF_DI = 2; // treble bottom line E4
+const MIDDLE_LINE_DI = STAFF_REF_DI + 4; // treble middle line B4. 일반 기보: 이 선 이상은 stem down, 아래는 stem up.
+const LETTERS = ['C','D','E','F','G','A','B'];
+const LETTER_PC = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+
+const KEY_SIG_COUNTS = {
+  'Cb:major':-7, 'Gb:major':-6, 'Db:major':-5, 'Ab:major':-4, 'Eb:major':-3, 'Bb:major':-2, 'F:major':-1,
+  'C:major':0, 'G:major':1, 'D:major':2, 'A:major':3, 'E:major':4, 'B:major':5, 'F#:major':6, 'C#:major':7,
+  'Ab:minor':-7, 'Eb:minor':-6, 'Bb:minor':-5, 'F:minor':-4, 'C:minor':-3, 'G:minor':-2, 'D:minor':-1,
+  'A:minor':0, 'E:minor':1, 'B:minor':2, 'F#:minor':3, 'C#:minor':4, 'G#:minor':5, 'D#:minor':6, 'A#:minor':7
+};
+const SHARP_ORDER = ['F','C','G','D','A','E','B'];
+const FLAT_ORDER = ['B','E','A','D','G','C','F'];
+
+const CHORD_RULES = {
+  maj:{symbol:'',pcs:[0,4,7],exts:['','2','6'],adds:['','add2','add4','add9'],alters:['']},
+  m:{symbol:'m',pcs:[0,3,7],exts:['','2','6'],adds:['','add2','add4','add9'],alters:['']},
+  dom7:{symbol:'7',pcs:[0,4,7,10],exts:['','9','11','13'],adds:[''],alters:['','b9','#9','b13']},
+  maj7:{symbol:'maj7',pcs:[0,4,7,11],exts:['','9','13'],adds:[''],alters:['','#11']},
+  m7:{symbol:'m7',pcs:[0,3,7,10],exts:['','9','11','13'],adds:[''],alters:['']},
+  mMaj7:{symbol:'mMaj7',pcs:[0,3,7,11],exts:['','9'],adds:[''],alters:['']},
+  dim:{symbol:'dim',pcs:[0,3,6],exts:[''],adds:[''],alters:['']},
+  dim7:{symbol:'dim7',pcs:[0,3,6,9],exts:[''],adds:[''],alters:['']},
+  m7b5:{symbol:'m7b5',pcs:[0,3,6,10],exts:['','9','11'],adds:[''],alters:['']},
+  aug:{symbol:'aug',pcs:[0,4,8],exts:[''],adds:[''],alters:['']},
+  sus2:{symbol:'sus2',pcs:[0,2,7],exts:[''],adds:[''],alters:['']},
+  sus4:{symbol:'sus4',pcs:[0,5,7],exts:[''],adds:[''],alters:['']},
+  '7sus4':{symbol:'7sus4',pcs:[0,5,7,10],exts:['','9','13'],adds:[''],alters:['']}
+};
+
+let state = {
+  title:'Untitled Song',
+  keyRoot:'C',
+  keyMode:'major',
+  timeSig:'4/4',
+  tempo:90,
+  harmonyStyle:'ccm',
+  inputKind:'note',
+  duration:1,
+  dotMode:0,
+  triplet:false,
+  accidental:'auto',
+  voiceMask:{melody:true,tenor:true,alto:true},
+  chordPadEnabled:false,
+  chordPadVolume:0.38,
+  masterVolume:0.82,
+  instrumentMelody:'piano',
+  instrumentTenor:'electricPiano',
+  instrumentAlto:'organ',
+  instrumentChordPad:'synthPad',
+  editMode:'draw',
+  events:[],
+  selectedId:null,
+  selectedIds:[],
+  selectedChordIds:[]
+};
+
+let nextId = 1;
+let renderInfo = null;
+let currentPlayId = null;
+let currentAudioContext = null;
+let playbackTimers = [];
+let drag = {active:false,id:null,historyPushed:false};
+let selectionDrag = {active:false,startX:0,startY:0,lastX:0,lastY:0,additive:false,baseNoteIds:[],baseChordIds:[],boxEl:null};
+let undoStack = [];
+let redoStack = [];
+let copiedEvents = [];
+let copiedChordItems = [];
+let copiedMode = 'events';
+
+function mod(n,m){ return ((n%m)+m)%m; }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+function showError(msg){
+  errorBox.style.display = 'block';
+  errorBox.textContent = msg;
+}
+
+function getKeyDisplay(){
+  return `${state.keyRoot} ${state.keyMode === 'minor' ? 'Minor' : 'Major'}`;
+}
+
+function keySigCount(){
+  return KEY_SIG_COUNTS[`${state.keyRoot}:${state.keyMode}`] || 0;
+}
+
+function keyAcc(){
+  const c = keySigCount();
+  const acc = {};
+  if(c > 0){
+    for(let i=0;i<c;i++) acc[SHARP_ORDER[i]] = 1;
+  }else if(c < 0){
+    for(let i=0;i<Math.abs(c);i++) acc[FLAT_ORDER[i]] = -1;
+  }
+  return acc;
+}
+
+function vexKey(){
+  return state.keyRoot + (state.keyMode === 'minor' ? 'm' : '');
+}
+
+function measureBeats(){
+  const [n,d] = state.timeSig.split('/').map(Number);
+  return n * (4 / d);
+}
+
+function inputDuration(){
+  let m = 1;
+  if(state.dotMode === 1) m = 1.5;
+  if(state.dotMode === 2) m = 1.75;
+  if(state.triplet) m *= 2 / 3;
+  return state.duration * m;
+}
+
+function totalBeats(){
+  let t = MEASURES_PER_SYSTEM * DEFAULT_SYSTEMS * measureBeats();
+  for(const e of state.events) t = Math.max(t, e.startBeat + e.duration);
+  return t;
+}
+
+function measureCount(){
+  return Math.max(MEASURES_PER_SYSTEM * DEFAULT_SYSTEMS, Math.ceil(totalBeats() / measureBeats()));
+}
+
+function systemCount(){
+  return Math.max(DEFAULT_SYSTEMS, Math.ceil(measureCount() / MEASURES_PER_SYSTEM));
+}
+
+function eventById(id){
+  return state.events.find(e=>e.id===id) || null;
+}
+
+function ensureSelectionState(){
+  if(!Array.isArray(state.selectedIds)){
+    state.selectedIds = state.selectedId === null || state.selectedId === undefined ? [] : [state.selectedId];
+  }
+
+  state.selectedIds = state.selectedIds.filter(id => !!eventById(id));
+
+  if(state.selectedIds.length === 0){
+    state.selectedId = null;
+  }else if(state.selectedId === null || !state.selectedIds.includes(state.selectedId)){
+    state.selectedId = state.selectedIds[state.selectedIds.length - 1];
+  }
+}
+
+
+function ensureChordSelectionState(){
+  if(!Array.isArray(state.selectedChordIds)) state.selectedChordIds = [];
+  state.selectedChordIds = state.selectedChordIds.filter(id => {
+    const e = eventById(id);
+    return !!(e && e.chord);
+  });
+}
+
+function isChordSelected(id){
+  ensureChordSelectionState();
+  return state.selectedChordIds.includes(id);
+}
+
+function selectedChordEvents(){
+  ensureChordSelectionState();
+  return state.events
+    .filter(e => state.selectedChordIds.includes(e.id) && e.chord)
+    .sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id);
+}
+
+function setChordSelection(ids){
+  const unique = [...new Set(ids)].filter(id => {
+    const e = eventById(id);
+    return !!(e && e.chord);
+  });
+  state.selectedChordIds = unique;
+}
+
+function toggleChordSelection(id){
+  ensureChordSelectionState();
+  if(state.selectedChordIds.includes(id)){
+    state.selectedChordIds = state.selectedChordIds.filter(x => x !== id);
+  }else{
+    const e = eventById(id);
+    if(e && e.chord) state.selectedChordIds.push(id);
+  }
+}
+
+function clearChordSelection(){
+  state.selectedChordIds = [];
+}
+
+function selectedEvent(){
+  ensureSelectionState();
+  return state.selectedId === null ? null : eventById(state.selectedId);
+}
+
+function isSelected(id){
+  ensureSelectionState();
+  return state.selectedIds.includes(id);
+}
+
+function selectedEvents(){
+  ensureSelectionState();
+  return state.events
+    .filter(e => state.selectedIds.includes(e.id))
+    .sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id);
+}
+
+function setSelection(ids){
+  const unique = [...new Set(ids)].filter(id => !!eventById(id));
+  state.selectedIds = unique;
+  state.selectedId = unique.length ? unique[unique.length - 1] : null;
+}
+
+function toggleSelection(id){
+  ensureSelectionState();
+
+  if(state.selectedIds.includes(id)){
+    state.selectedIds = state.selectedIds.filter(x => x !== id);
+  }else{
+    state.selectedIds.push(id);
+  }
+
+  state.selectedId = state.selectedIds.length ? state.selectedIds[state.selectedIds.length - 1] : null;
+}
+
+function clearSelection(){
+  state.selectedIds = [];
+  state.selectedId = null;
+}
+
+function snapshotForHistory(){
+  return JSON.stringify({
+    state: JSON.parse(JSON.stringify(state)),
+    nextId
+  });
+}
+
+function restoreSnapshot(snapshot){
+  const data = JSON.parse(snapshot);
+  state = data.state;
+  nextId = data.nextId || nextId;
+  normalize();
+}
+
+function pushHistory(){
+  undoStack.push(snapshotForHistory());
+  if(undoStack.length > 10) undoStack.shift();
+  redoStack = [];
+  updateUndoRedoButtons();
+}
+
+function undo(){
+  if(!undoStack.length) return;
+  redoStack.push(snapshotForHistory());
+  const snap = undoStack.pop();
+  restoreSnapshot(snap);
+  render();
+}
+
+function redo(){
+  if(!redoStack.length) return;
+  undoStack.push(snapshotForHistory());
+  if(undoStack.length > 10) undoStack.shift();
+  const snap = redoStack.pop();
+  restoreSnapshot(snap);
+  render();
+}
+
+function updateUndoRedoButtons(){
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+
+  if(undoBtn) undoBtn.disabled = undoStack.length === 0;
+  if(redoBtn) redoBtn.disabled = redoStack.length === 0;
+}
+
+function setEditMode(mode){
+  state.editMode = mode === 'select' ? 'select' : 'draw';
+
+  const pencil = document.getElementById('pencilModeBtn');
+  const select = document.getElementById('selectModeBtn');
+
+  if(pencil) pencil.classList.toggle('active', state.editMode === 'draw');
+  if(select) select.classList.toggle('active', state.editMode === 'select');
+
+  updateStatus();
+}
+
+function getAppendBeat(){
+  if(!state.events.length) return 0;
+
+  let end = 0;
+  for(const e of state.events){
+    end = Math.max(end, e.startBeat + e.duration);
+  }
+
+  end = Math.round(end * 1000) / 1000;
+
+  const mb = measureBeats();
+  const dur = inputDuration();
+  const local = localBeat(end);
+
+  // 현재 마디에 선택한 음표/쉼표가 들어가면 그대로 append.
+  // 들어가지 않으면 다음 마디 첫 박자로 넘긴다.
+  if(local > 0.0001 && local + dur > mb + 0.0001){
+    return (Math.floor(end / mb) + 1) * mb;
+  }
+
+  return end;
+}
+
+function stripGeneratedHarmony(event){
+  const e = JSON.parse(JSON.stringify(event));
+  delete e.tenor;
+  delete e.alto;
+  return e;
+}
+
+function copySelectedEvents(){
+  const sel = selectedEvents();
+  if(!sel.length) return;
+
+  const minBeat = Math.min(...sel.map(e => e.startBeat));
+  copiedEvents = sel.map(e => {
+    const c = stripGeneratedHarmony(e);
+    c.relativeStartBeat = e.startBeat - minBeat;
+    return c;
+  });
+  copiedMode = 'events';
+
+  updateStatus();
+}
+
+function copySelectedChords(){
+  const sel = selectedChordEvents();
+  if(!sel.length) return;
+
+  const minBeat = Math.min(...sel.map(e => e.startBeat));
+  copiedChordItems = sel.map(e => ({
+    chord: e.chord,
+    relativeStartBeat: e.startBeat - minBeat
+  }));
+  copiedMode = 'chords';
+
+  updateStatus();
+}
+
+function pasteCopiedEvents(){
+  if(!copiedEvents.length) return;
+
+  pushHistory();
+
+  const base = getAppendBeat();
+  const newIds = [];
+
+  for(const item of copiedEvents){
+    const e = JSON.parse(JSON.stringify(item));
+    delete e.relativeStartBeat;
+    e.id = nextId++;
+    e.startBeat = base + (item.relativeStartBeat || 0);
+    delete e.tenor;
+    delete e.alto;
+
+    state.events.push(e);
+    newIds.push(e.id);
+  }
+
+  sortEvents();
+  setSelection(newIds);
+  clearChordSelection();
+  render();
+}
+
+function targetEventsForChordPaste(){
+  const chordTargets = selectedChordEvents();
+  if(chordTargets.length) return chordTargets;
+
+  const noteTargets = selectedEvents();
+  if(noteTargets.length) return noteTargets;
+
+  return [];
+}
+
+function findEventForBeat(beat){
+  const sorted = getSortedEvents();
+  let exact = sorted.find(e => Math.abs(e.startBeat - beat) < 0.001);
+  if(exact) return exact;
+
+  let following = sorted.find(e => e.startBeat >= beat - 0.001);
+  if(following) return following;
+
+  return null;
+}
+
+function pasteCopiedChords(){
+  if(!copiedChordItems.length) return;
+
+  pushHistory();
+
+  const targets = targetEventsForChordPaste();
+  const changedIds = [];
+
+  if(targets.length){
+    const sortedTargets = [...targets].sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id);
+
+    for(let i=0; i<sortedTargets.length; i++){
+      const item = copiedChordItems.length === 1 ? copiedChordItems[0] : copiedChordItems[i % copiedChordItems.length];
+      sortedTargets[i].chord = item.chord;
+      changedIds.push(sortedTargets[i].id);
+    }
+  }else{
+    const base = getAppendBeat();
+
+    for(const item of copiedChordItems){
+      const target = findEventForBeat(base + (item.relativeStartBeat || 0));
+      if(target){
+        target.chord = item.chord;
+        changedIds.push(target.id);
+      }
+    }
+  }
+
+  if(changedIds.length){
+    clearSelection();
+    setChordSelection(changedIds);
+  }
+
+  render();
+}
+
+function sortEvents(){
+  state.events.sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id);
+}
+
+function measureOfBeat(beat){
+  return Math.floor(beat / measureBeats());
+}
+
+function localBeat(beat){
+  const mb = measureBeats();
+  return beat - Math.floor(beat / mb) * mb;
+}
+
+function eventsInMeasure(m){
+  return state.events
+    .filter(e => measureOfBeat(e.startBeat) === m)
+    .sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id);
+}
+
+function buildLayout(){
+  const mc = measureCount();
+  const widths = [];
+
+  // 각 마디 폭은 박자 길이가 아니라, 실제 음표/쉼표 이벤트 개수 기준이다.
+  // 16분음표라고 더 붙거나, 긴 음표라고 더 벌어지지 않는다.
+  for(let m=0; m<mc; m++){
+    const events = eventsInMeasure(m);
+    const extra = (m % MEASURES_PER_SYSTEM === 0 ? FIRST_MEASURE_EXTRA_W : 0);
+    const eventCount = Math.max(1, events.length);
+
+    widths[m] = Math.max(
+      MEASURE_MIN_W + extra,
+      extra + 92 + eventCount * FIXED_NOTE_GAP_W
+    );
+  }
+
+  // 각 행의 총 길이를 구한 뒤, 가장 긴 행에 맞춰 짧은 행은 마지막 마디만 늘린다.
+  const rowWidths = [];
+  for(let s=0; s<systemCount(); s++){
+    const first = s * MEASURES_PER_SYSTEM;
+    const last = Math.min(first + MEASURES_PER_SYSTEM, mc) - 1;
+    let rowWidth = 0;
+
+    for(let m=first; m<=last; m++){
+      rowWidth += widths[m];
+    }
+
+    rowWidths[s] = rowWidth;
+  }
+
+  const maxRowWidth = Math.max(...rowWidths, 0);
+
+  for(let s=0; s<systemCount(); s++){
+    const first = s * MEASURES_PER_SYSTEM;
+    const last = Math.min(first + MEASURES_PER_SYSTEM, mc) - 1;
+
+    if(last >= first){
+      const diff = maxRowWidth - rowWidths[s];
+      if(diff > 0.001) widths[last] += diff;
+    }
+  }
+
+  const systems = [];
+  let scoreWidth = 0;
+
+  for(let s=0; s<systemCount(); s++){
+    const first = s * MEASURES_PER_SYSTEM;
+    const last = Math.min(first + MEASURES_PER_SYSTEM, mc) - 1;
+    let x = PAGE_LEFT;
+    const starts = {};
+
+    for(let m=first; m<=last; m++){
+      starts[m] = x;
+      x += widths[m];
+    }
+
+    systems[s] = {first,last,x:PAGE_LEFT,y:STAFF_TOP + s*SYSTEM_GAP,width:x-PAGE_LEFT,starts};
+    scoreWidth = Math.max(scoreWidth, x + RIGHT_PAD);
+  }
+
+  return {measureCount:mc,widths,systems,scoreWidth};
+}
+
+function diToKey(di){
+  const letter = LETTERS[mod(di,7)].toLowerCase();
+  const octave = 4 + Math.floor(di/7);
+  return `${letter}/${octave}`;
+}
+
+function diLetter(di){
+  return LETTERS[mod(di,7)];
+}
+
+function accidentalOffset(accidental, keyOffset){
+  if(accidental === 'natural') return 0;
+  if(accidental === 'sharp') return 1;
+  if(accidental === 'flat') return -1;
+  return keyOffset || 0;
+}
+
+function diToMidi(di, accidental='auto'){
+  const letter = diLetter(di);
+  const octave = 4 + Math.floor(di/7);
+  const acc = accidentalOffset(accidental, keyAcc()[letter] || 0);
+  return 12*(octave+1) + LETTER_PC[letter] + acc;
+}
+
+function midiToDi(midi){
+  const pc = mod(midi,12);
+  const octave = Math.floor(midi/12)-1;
+  for(const letter of LETTERS){
+    const acc = keyAcc()[letter] || 0;
+    if(mod(LETTER_PC[letter]+acc,12) === pc){
+      return (octave-4)*7 + LETTERS.indexOf(letter);
+    }
+  }
+
+  let best = 0, dist = 999;
+  for(let di=-28; di<=36; di++){
+    const d = Math.abs(diToMidi(di)-midi);
+    if(d < dist){ dist=d; best=di; }
+  }
+  return best;
+}
+
+function accidentalGlyph(acc){
+  if(acc === 'natural') return 'n';
+  if(acc === 'sharp') return '#';
+  if(acc === 'flat') return 'b';
+  if(acc === 'doubleSharp') return '##';
+  if(acc === 'doubleFlat') return 'bb';
+  return null;
+}
+
+function normalizePitchOffset(offset){
+  let o = offset;
+  while(o > 6) o -= 12;
+  while(o < -6) o += 12;
+  return o;
+}
+
+function accidentalForMidiAtDi(midi, di){
+  // VexFlow의 key는 오선상의 음 이름이다.
+  // 예: F#을 f/4로 그리면 반드시 # Accidental을 붙여야 한다.
+  // 조표에 이미 들어있는 변화음이면 표기하지 않고,
+  // 조표와 다른 변화가 필요할 때만 natural / sharp / flat을 붙인다.
+  const letter = diLetter(di);
+  const octave = 4 + Math.floor(di / 7);
+  const naturalMidi = 12 * (octave + 1) + LETTER_PC[letter];
+  const wantedOffset = normalizePitchOffset(midi - naturalMidi);
+  const keyOffset = keyAcc()[letter] || 0;
+
+  if(wantedOffset === keyOffset) return 'auto';
+  if(wantedOffset === 0) return 'natural';
+  if(wantedOffset === 1) return 'sharp';
+  if(wantedOffset === -1) return 'flat';
+  if(wantedOffset === 2) return 'doubleSharp';
+  if(wantedOffset === -2) return 'doubleFlat';
+
+  return 'auto';
+}
+
+function durationToVex(base, rest=false){
+  let d;
+  if(base >= 4) d='w';
+  else if(base >= 2) d='h';
+  else if(base >= 1) d='q';
+  else if(base >= .5) d='8';
+  else if(base >= .25) d='16';
+  else if(base >= .125) d='32';
+  else d='64';
+  return rest ? d+'r' : d;
+}
+
+function splitDuration(beats){
+  const out = [];
+  let b = beats;
+  const parts = [4,2,1,.5,.25,.125];
+  while(b > .0001){
+    let found = false;
+    for(const p of parts){
+      if(b >= p - .0001){
+        out.push(p);
+        b -= p;
+        found = true;
+        break;
+      }
+    }
+    if(!found){
+      out.push(.125);
+      break;
+    }
+  }
+  return out;
+}
+
+function addDots(note, count){
+  for(let i=0;i<count;i++){
+    try{
+      if(note.addDotToAll) note.addDotToAll();
+      else note.addDot(0);
+    }catch(e){}
+  }
+}
+
+function addAccidental(note, index, acc){
+  const g = accidentalGlyph(acc);
+  if(!g) return;
+
+  try{
+    const a = new VF.Accidental(g);
+    try{ note.addModifier(a, index); }
+    catch(e1){ note.addModifier(index, a); }
+  }catch(e){}
+}
+
+function addChordAnnotation(note, text){
+  if(!text) return;
+
+  try{
+    const ann = new VF.Annotation(text)
+      .setFont('Arial', 13, 'bold')
+      .setVerticalJustification(VF.Annotation.VerticalJustify.TOP);
+    try{ note.addModifier(ann,0); }
+    catch(e1){ note.addModifier(0,ann); }
+  }catch(e){}
+}
+
+function getChordText(){
+  const rule = CHORD_RULES[chordTypeSelect.value] || CHORD_RULES.maj;
+  return chordRootSelect.value + chordAccSelect.value + rule.symbol +
+    (chordExtSelect.value || '') +
+    (chordAddSelect.value || '') +
+    (chordAltSelect.value || '') +
+    (slashBassSelect.value ? '/' + slashBassSelect.value : '');
+}
+
+function updateChordOptions(){
+  const rule = CHORD_RULES[chordTypeSelect.value] || CHORD_RULES.maj;
+
+  function fill(sel, arr){
+    const old = sel.value;
+    sel.innerHTML = '';
+    for(const v of arr){
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = v || 'None';
+      sel.appendChild(o);
+    }
+    sel.value = arr.includes(old) ? old : '';
+  }
+
+  fill(chordExtSelect, rule.exts);
+  fill(chordAddSelect, rule.adds);
+  fill(chordAltSelect, rule.alters);
+  chordPreview.textContent = getChordText();
+}
+
+function parseChordPcs(chord){
+  const clean = chord.split('/')[0];
+  const m = clean.match(/^([A-G])([#b]?)(.*)$/);
+  if(!m) return [0,4,7];
+
+  let root = LETTER_PC[m[1]];
+  if(m[2] === '#') root++;
+  if(m[2] === 'b') root--;
+  root = mod(root,12);
+
+  const rest = m[3];
+
+  let rule = CHORD_RULES.maj;
+  let bestLen = -1;
+  for(const r of Object.values(CHORD_RULES)){
+    if(rest.startsWith(r.symbol) && r.symbol.length > bestLen){
+      rule = r;
+      bestLen = r.symbol.length;
+    }
+  }
+
+  let ints = [...rule.pcs];
+
+  if(rest.includes('13')) ints.push(21);
+  else if(rest.includes('11')) ints.push(17);
+  else if(rest.includes('9')) ints.push(14);
+  else if(rest.includes('2')) ints.push(2);
+  if(rest.includes('6')) ints.push(9);
+  if(rest.includes('add2')) ints.push(2);
+  if(rest.includes('add4')) ints.push(5);
+  if(rest.includes('add9')) ints.push(14);
+  if(rest.includes('b9')) ints.push(13);
+  if(rest.includes('#9')) ints.push(15);
+  if(rest.includes('#11')) ints.push(18);
+  if(rest.includes('b13')) ints.push(20);
+
+  return [...new Set(ints.map(i=>mod(root+i,12)))];
+}
+
+function effectiveChord(event){
+  let c = state.keyRoot + (state.keyMode === 'minor' ? 'm' : '');
+  for(const e of [...state.events].sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id)){
+    if(e.startBeat > event.startBeat) break;
+    if(e.chord) c = e.chord;
+  }
+  return c;
+}
+
+function candidates(pcs, min, max){
+  const out = [];
+  for(let m=min; m<=max; m++){
+    if(pcs.includes(mod(m,12))) out.push(m);
+  }
+  return out;
+}
+
+function chooseBest(arr, score){
+  if(!arr.length) return null;
+  let best = arr[0], bestScore = Infinity;
+  for(const x of arr){
+    const s = score(x);
+    if(s < bestScore){ best=x; bestScore=s; }
+  }
+  return best;
+}
+
+function harmonyStyleConfig(){
+  const style = state.harmonyStyle || 'ccm';
+
+  const configs = {
+    pop: {
+      name:'Pop Basic',
+      upperRange:14,
+      lowerRange:14,
+      extraTensions:[],
+      tenorTargets:[3,4],
+      altoTargets:[3,4],
+      tenorWidePenalty:10,
+      altoWidePenalty:10,
+      movementWeight:4,
+      duplicatePenalty:85,
+      open:false
+    },
+    kpop: {
+      name:'K-Pop / Ballad',
+      upperRange:14,
+      lowerRange:15,
+      extraTensions:[2],
+      tenorTargets:[3,4],
+      altoTargets:[3,4,5],
+      tenorWidePenalty:9,
+      altoWidePenalty:8,
+      movementWeight:4,
+      duplicatePenalty:70,
+      open:false
+    },
+    ccm: {
+      name:'CCM Worship',
+      upperRange:14,
+      lowerRange:14,
+      extraTensions:[2,9],
+      tenorTargets:[3,4,5],
+      altoTargets:[3,4,5],
+      tenorWidePenalty:8,
+      altoWidePenalty:8,
+      movementWeight:3,
+      duplicatePenalty:55,
+      open:false
+    },
+    gospel: {
+      name:'Contemporary Gospel',
+      upperRange:18,
+      lowerRange:16,
+      extraTensions:[2,5,9,10],
+      tenorTargets:[3,4,5,7,9],
+      altoTargets:[3,4,5,7],
+      tenorWidePenalty:4,
+      altoWidePenalty:5,
+      movementWeight:2,
+      duplicatePenalty:25,
+      open:true
+    },
+    tight: {
+      name:'Tight 3-Part',
+      upperRange:10,
+      lowerRange:10,
+      extraTensions:[2],
+      tenorTargets:[3,4],
+      altoTargets:[3,4],
+      tenorWidePenalty:18,
+      altoWidePenalty:18,
+      movementWeight:5,
+      duplicatePenalty:95,
+      open:false
+    },
+    open: {
+      name:'Open 3-Part',
+      upperRange:18,
+      lowerRange:18,
+      extraTensions:[2,9],
+      tenorTargets:[5,7,9,12],
+      altoTargets:[4,5,7,9],
+      tenorWidePenalty:3,
+      altoWidePenalty:3,
+      movementWeight:2,
+      duplicatePenalty:45,
+      open:true
+    }
+  };
+
+  return configs[style] || configs.ccm;
+}
+
+function addStyleTensions(pcs, chordText, cfg){
+  const clean = chordText.split('/')[0];
+  const m = clean.match(/^([A-G])([#b]?)/);
+  if(!m) return pcs;
+
+  let rootPc = LETTER_PC[m[1]];
+  if(m[2] === '#') rootPc++;
+  if(m[2] === 'b') rootPc--;
+  rootPc = mod(rootPc, 12);
+
+  const out = [...pcs];
+
+  // style extraTensions stores semitone intervals from root:
+  // 2 = 9/add2, 5 = 11/sus4 color, 9 = 6/13, 10 = b7 dominant color
+  for(const t of cfg.extraTensions || []){
+    out.push(mod(rootPc + t, 12));
+  }
+
+  return [...new Set(out)];
+}
+
+function targetIntervalPenalty(interval, targets){
+  let best = Infinity;
+  for(const t of targets) best = Math.min(best, Math.abs(interval - t));
+  return best;
+}
+
+function generateHarmony(){
+  let prevT = null, prevA = null;
+  const cfg = harmonyStyleConfig();
+
+  for(const e of [...state.events].sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id)){
+    if(e.rest){ e.tenor=null; e.alto=null; continue; }
+
+    const melody = diToMidi(e.di, e.accidental || 'auto');
+    const chord = effectiveChord(e);
+    const basePcs = parseChordPcs(chord);
+    const pcs = addStyleTensions(basePcs, chord, cfg);
+
+    const tCands = candidates(pcs, melody+1, melody+cfg.upperRange);
+    e.tenor = chooseBest(tCands, m=>{
+      const int = m - melody;
+      let s = targetIntervalPenalty(int, cfg.tenorTargets) * 9;
+      if(int < 3) s += 90;
+      if(!cfg.open && int > 8) s += (int-8) * cfg.tenorWidePenalty;
+      if(prevT !== null) s += Math.abs(m-prevT) * cfg.movementWeight;
+      if(mod(m,12) === mod(melody,12)) s += cfg.duplicatePenalty;
+      return s;
+    });
+
+    const aCands = candidates(pcs, melody-cfg.lowerRange, melody-1);
+    e.alto = chooseBest(aCands, m=>{
+      const int = melody - m;
+      let s = targetIntervalPenalty(int, cfg.altoTargets) * 8;
+      if(int < 3) s += 90;
+      if(!cfg.open && int > 10) s += (int-10) * cfg.altoWidePenalty;
+      if(prevA !== null) s += Math.abs(m-prevA) * cfg.movementWeight;
+      if(mod(m,12) === mod(melody,12)) s += cfg.duplicatePenalty;
+      if(e.tenor !== null && mod(m,12) === mod(e.tenor,12)) s += cfg.duplicatePenalty * .35;
+      return s;
+    });
+
+    prevT = e.tenor;
+    prevA = e.alto;
+  }
+}
+
+function makeVoiceDisplayItem(voice, midi, di, accidental){
+  return {
+    voice,
+    midi,
+    di,
+    accidental: accidental || accidentalForMidiAtDi(midi, di)
+  };
+}
+
+function visibleKeysForEvent(e){
+  if(e.rest) return {keys:['b/4'], voiceData:[]};
+
+  const items = [];
+
+  if(state.voiceMask.alto && e.alto !== null && e.alto !== undefined){
+    const di = midiToDi(e.alto);
+    items.push(makeVoiceDisplayItem('alto', e.alto, di, accidentalForMidiAtDi(e.alto, di)));
+  }
+
+  if(state.voiceMask.melody){
+    const midi = diToMidi(e.di, e.accidental || 'auto');
+    items.push(makeVoiceDisplayItem('melody', midi, e.di, e.accidental || 'auto'));
+  }
+
+  if(state.voiceMask.tenor && e.tenor !== null && e.tenor !== undefined){
+    const di = midiToDi(e.tenor);
+    items.push(makeVoiceDisplayItem('tenor', e.tenor, di, accidentalForMidiAtDi(e.tenor, di)));
+  }
+
+  items.sort((a,b)=>a.midi-b.midi);
+
+  if(!items.length){
+    const midi = diToMidi(e.di,e.accidental||'auto');
+    items.push(makeVoiceDisplayItem('melody', midi, e.di, e.accidental || 'auto'));
+  }
+
+  return {keys:items.map(i=>diToKey(i.di)), voiceData:items};
+}
+
+
+function stemUpConst(){
+  try{
+    if(VF && VF.Stem && VF.Stem.UP !== undefined) return VF.Stem.UP;
+  }catch(e){}
+  return 1;
+}
+
+function stemDownConst(){
+  try{
+    if(VF && VF.Stem && VF.Stem.DOWN !== undefined) return VF.Stem.DOWN;
+  }catch(e){}
+  return -1;
+}
+
+function isStemUpDirection(dir){
+  return Number(dir) >= 0;
+}
+
+function stemDirectionFromDis(dis){
+  const clean = (dis || []).filter(v => Number.isFinite(v));
+  if(!clean.length) return stemUpConst();
+
+  let highestAbove = 0;
+  let lowestBelow = 0;
+
+  for(const di of clean){
+    if(di >= MIDDLE_LINE_DI){
+      highestAbove = Math.max(highestAbove, di - MIDDLE_LINE_DI);
+    }else{
+      lowestBelow = Math.max(lowestBelow, MIDDLE_LINE_DI - di);
+    }
+  }
+
+  // 일반 악보기보 공식:
+  // 가운데 줄(B4) 이상은 stem down, 가운데 줄보다 아래는 stem up.
+  // 화음/여러 음일 때는 가운데 줄에서 더 멀리 떨어진 쪽을 기준으로 한다.
+  // 양쪽 거리가 같으면 기본적으로 stem down을 택한다.
+  return highestAbove >= lowestBelow ? stemDownConst() : stemUpConst();
+}
+
+function stemDirectionFromVoiceData(voiceData, fallbackDi){
+  const dis = [];
+
+  for(const v of (voiceData || [])){
+    if(v && Number.isFinite(v.di)) dis.push(v.di);
+  }
+
+  if(!dis.length && Number.isFinite(fallbackDi)) dis.push(fallbackDi);
+  return stemDirectionFromDis(dis);
+}
+
+function stemDirectionForEvent(e){
+  if(!e || e.rest) return stemUpConst();
+  const vk = visibleKeysForEvent(e);
+  return stemDirectionFromVoiceData(vk.voiceData, e.di);
+}
+
+function stemDirectionForGroup(events){
+  const dis = [];
+
+  for(const e of (events || [])){
+    if(!e || e.rest) continue;
+    const vk = visibleKeysForEvent(e);
+    for(const v of (vk.voiceData || [])){
+      if(v && Number.isFinite(v.di)) dis.push(v.di);
+    }
+    if(!vk.voiceData || !vk.voiceData.length){
+      if(Number.isFinite(e.di)) dis.push(e.di);
+    }
+  }
+
+  return stemDirectionFromDis(dis);
+}
+
+function applyStemDirection(note, dir){
+  if(!note || !Number.isFinite(Number(dir))) return;
+
+  try{ note.setStemDirection(dir); }
+  catch(e){
+    try{ note.stem_direction = dir; }catch(e2){}
+  }
+
+  try{ note._tcStemDirection = dir; }catch(e){}
+}
+
+function tieSideOppositeStem(a, b){
+  let dir = null;
+
+  try{
+    if(renderInfo && renderInfo.stemDirById){
+      dir = renderInfo.stemDirById.get(a.id);
+      if(dir === undefined || dir === null) dir = renderInfo.stemDirById.get(b.id);
+    }
+  }catch(e){}
+
+  if(dir === undefined || dir === null) dir = stemDirectionForEvent(a);
+
+  // Canvas/SVG 좌표계에서 side=1은 아래쪽, side=-1은 위쪽.
+  // stem up이면 tie/slur는 아래, stem down이면 tie/slur는 위로 둔다.
+  return isStemUpDirection(dir) ? 1 : -1;
+}
+
+function makeStaveNote(e){
+  const isRest = e.rest;
+  const vk = visibleKeysForEvent(e);
+  const note = new VF.StaveNote({
+    keys: vk.keys,
+    duration: durationToVex(e.baseDuration || e.duration, isRest)
+  });
+
+  if(!isRest){
+    applyStemDirection(note, stemDirectionFromVoiceData(vk.voiceData, e.di));
+  }
+
+  note._eventId = e.id;
+
+  if(e.id === currentPlayId || isSelected(e.id)){
+    try{ note.setStyle({fillStyle:'#e34848', strokeStyle:'#e34848'}); }catch(err){}
+  }
+
+  if(!isRest){
+    // Melody뿐 아니라 자동 생성된 Tenor / Alto에도 실제 MIDI 음과 오선 음 이름이 다르면
+    // # / b / natural을 표시해야 한다.
+    // 예: C key에서 코드톤 때문에 F#이 생성되면 f/4 + #로 표기.
+    vk.voiceData.forEach((v, index) => {
+      addAccidental(note, index, v.accidental || 'auto');
+    });
+  }
+
+  addDots(note, e.dotMode || 0);
+  // 코드명은 note annotation으로 붙이지 않는다.
+  // stem/beam과 겹치지 않도록 render()에서 각 system의 고정 높이에 별도로 그린다.
+
+  return note;
+}
+
+function makeSpacer(dur){
+  // 자동으로 생기는 박자 보정용 쉼표는 화면에 보이지 않게 처리한다.
+  // 사용자가 Rest 버튼으로 직접 넣은 쉼표만 실제 쉼표로 표시된다.
+  try{
+    if(VF.GhostNote){
+      return new VF.GhostNote(durationToVex(dur,false));
+    }
+  }catch(e){}
+
+  const n = new VF.StaveNote({keys:['b/4'], duration:durationToVex(dur,true)});
+
+  // GhostNote가 없는 환경을 위한 fallback.
+  try{
+    n.setStyle({
+      fillStyle:'rgba(0,0,0,0)',
+      strokeStyle:'rgba(0,0,0,0)'
+    });
+  }catch(e){}
+
+  n._autoSpacer = true;
+  return n;
+}
+
+function beamCountForEvent(e){
+  if(!e || e.rest) return 0;
+  const d = e.baseDuration || e.duration;
+
+  if(d <= 0.125) return 3;   // 32nd
+  if(d <= 0.25) return 2;    // 16th
+  if(d <= 0.5) return 1;     // 8th
+  return 0;
+}
+
+function isBeamableEvent(e){
+  return beamCountForEvent(e) > 0;
+}
+
+function flushBeamGroup(pending, beamGroups){
+  if(pending.length >= 2){
+    beamGroups.push([...pending]);
+  }
+  pending.length = 0;
+}
+
+function autoBeamUnitBeat(){
+  const parts = String(state.timeSig || '4/4').split('/').map(Number);
+  const num = parts[0] || 4;
+  const den = parts[1] || 4;
+
+  // 6/8, 9/8, 12/8 같은 compound meter는 dotted-quarter 단위로 묶는다.
+  if(den === 8 && num % 3 === 0 && num >= 6) return 1.5;
+
+  // 일반 2/4, 3/4, 4/4는 1 beat 단위로 자동 beam.
+  return 1.0;
+}
+
+function autoBeamGroupsForMeasure(events, measure){
+  const beamGroups = [];
+  const pending = [];
+  const unit = autoBeamUnitBeat();
+  const measureStart = measure * measureBeats();
+  let lastEnd = null;
+  let lastBucket = null;
+
+  for(const e of events){
+    if(!isBeamableEvent(e)){
+      flushBeamGroup(pending, beamGroups);
+      lastEnd = null;
+      lastBucket = null;
+      continue;
+    }
+
+    const local = e.startBeat - measureStart;
+    const bucket = Math.floor((local + 0.0001) / unit);
+    const hasGap = lastEnd !== null && Math.abs(e.startBeat - lastEnd) > 0.0001;
+    const newBucket = lastBucket !== null && bucket !== lastBucket;
+
+    if(hasGap || newBucket){
+      flushBeamGroup(pending, beamGroups);
+    }
+
+    pending.push(e);
+    lastEnd = e.startBeat + e.duration;
+    lastBucket = bucket;
+  }
+
+  flushBeamGroup(pending, beamGroups);
+  return beamGroups;
+}
+
+function eventHeadY(e, stave){
+  const top = stave.getYForLine(0);
+  const bottom = stave.getYForLine(4);
+  const step = (bottom - top) / 8;
+  const di = e && !e.rest ? e.di : STAFF_REF_DI;
+  return bottom - (di - STAFF_REF_DI) * step;
+}
+
+function drawFixedBeamGroups(ctx, beamGroups, stave){
+  // VexFlow의 실제 notehead/stem/beam 좌표를 그대로 사용한다.
+  // 이전 버전의 커스텀 stem/beam 오버레이는 SVG notehead와 Canvas/SVG beam 좌표가 서로 달라
+  // 머리와 꼬리가 어긋나고, 8분음표까지 16분음표처럼 보이는 원인이었다.
+  // 그래서 여기서는 아무것도 그리지 않는다.
+  return;
+}
+
+function createVoiceForMeasure(measure){
+  const events = eventsInMeasure(measure);
+  const mb = measureBeats();
+  let cursor = measure * mb;
+  const notes = [];
+  const map = [];
+  const tupletGroups = [];
+  const beamGroups = autoBeamGroupsForMeasure(events, measure);
+  const stemDirById = new Map();
+  let pendingTuplet = [];
+
+  for(const e of events){
+    if(e.startBeat > cursor + .001){
+      for(const part of splitDuration(e.startBeat - cursor)){
+        notes.push(makeSpacer(part));
+        map.push(null);
+        pendingTuplet = [];
+      }
+    }
+
+    const eventNote = makeStaveNote(e);
+    notes.push(eventNote);
+    map.push(e);
+
+    if(e.triplet){
+      pendingTuplet.push(eventNote);
+      if(pendingTuplet.length === 3){
+        tupletGroups.push([...pendingTuplet]);
+        pendingTuplet = [];
+      }
+    }else{
+      pendingTuplet = [];
+    }
+
+    cursor = Math.max(cursor, e.startBeat + e.duration);
+  }
+
+  const end = (measure+1) * mb;
+  if(cursor < end - .001){
+    for(const part of splitDuration(end - cursor)){
+      notes.push(makeSpacer(part));
+      map.push(null);
+    }
+  }
+
+  const [num,den] = state.timeSig.split('/').map(Number);
+  const voice = new VF.Voice({num_beats:num, beat_value:den});
+  voice.setStrict(false);
+  voice.addTickables(notes);
+
+  // 각 음표의 기본 stem 방향을 먼저 기록한다.
+  for(let i=0; i<map.length; i++){
+    const e = map[i];
+    if(!e || e.rest) continue;
+    const dir = stemDirectionForEvent(e);
+    stemDirById.set(e.id, dir);
+    applyStemDirection(notes[i], dir);
+  }
+
+  // 실제 beam은 VexFlow Beam 객체가 직접 그린다.
+  // Beamed group은 그룹 전체의 음역을 기준으로 같은 stem 방향을 쓰게 한다.
+  const beams = [];
+  for(const group of beamGroups){
+    const groupDir = stemDirectionForGroup(group);
+
+    const noteGroup = group.map(e => {
+      const idx = map.findIndex(item => item && item.id === e.id);
+      if(idx >= 0 && notes[idx]){
+        stemDirById.set(e.id, groupDir);
+        applyStemDirection(notes[idx], groupDir);
+        return notes[idx];
+      }
+      return null;
+    }).filter(Boolean);
+
+    if(noteGroup.length >= 2){
+      try{
+        const beam = new VF.Beam(noteGroup);
+        try{ if(beam.setStemDirection) beam.setStemDirection(groupDir); }catch(e){}
+        beams.push(beam);
+      }catch(err){}
+    }
+  }
+
+  const tuplets = tupletGroups.map(group => {
+    try{
+      return new VF.Tuplet(group, {num_notes:3, notes_occupied:2});
+    }catch(e){
+      return null;
+    }
+  }).filter(Boolean);
+
+  return {voice,notes,map,tuplets,beams,beamGroups,stemDirById};
+}
+
+function staveNoteStartX(stave){
+  try{ return stave.getNoteStartX(); }catch(e){ return stave.getX()+95; }
+}
+
+function staveNoteEndX(stave){
+  try{ return stave.getNoteEndX(); }catch(e){ return stave.getX()+stave.getWidth()-12; }
+}
+
+function getNoteSvgElement(note){
+  if(!note) return null;
+
+  const candidates = [];
+
+  try{ if(note.attrs && note.attrs.el) candidates.push(note.attrs.el); }catch(e){}
+  try{ if(note.attrs && note.attrs.element) candidates.push(note.attrs.element); }catch(e){}
+  try{ if(typeof note.getAttribute === 'function') candidates.push(note.getAttribute('el')); }catch(e){}
+  try{ if(typeof note.getAttribute === 'function') candidates.push(note.getAttribute('element')); }catch(e){}
+  try{ if(typeof note.getSVGElement === 'function') candidates.push(note.getSVGElement()); }catch(e){}
+  try{ if(typeof note.getElement === 'function') candidates.push(note.getElement()); }catch(e){}
+
+  for(const el of candidates){
+    if(el && typeof el.setAttribute === 'function') return el;
+  }
+
+  return null;
+}
+
+function translateNoteSvg(note, dx){
+  if(!dx || Math.abs(dx) < 0.001) return;
+
+  const el = getNoteSvgElement(note);
+  if(!el) return;
+
+  const prev = el.getAttribute('transform') || '';
+  el.setAttribute('transform', `${prev} translate(${dx},0)`.trim());
+}
+
+function fixedEventX(stave, ordinal){
+  return staveNoteStartX(stave) + 14 + ordinal * FIXED_NOTE_GAP_W;
+}
+
+function render(){
+  if(!VF){
+    showError('VexFlow가 로드되지 않았다. 인터넷 연결 후 다시 열어줘.');
+    return;
+  }
+
+  generateHarmony();
+
+  vfCanvas.innerHTML = '';
+  hitLayer.innerHTML = '';
+
+  const layout = buildLayout();
+  const width = Math.max(1040, layout.scoreWidth);
+  const height = STAFF_TOP + systemCount()*SYSTEM_GAP + 70;
+
+  scoreSurface.style.width = width+'px';
+  scoreSurface.style.height = height+'px';
+  vfCanvas.style.width = width+'px';
+  vfCanvas.style.height = height+'px';
+  hitLayer.style.width = width+'px';
+  hitLayer.style.height = height+'px';
+
+  const renderer = new VF.Renderer(vfCanvas, VF.Renderer.Backends.SVG);
+  renderer.resize(width,height);
+  const ctx = renderer.getContext();
+
+  renderInfo = {measureBoxes:[], eventBoxes:[], chordBoxes:[], staves:new Map(), noteById:new Map(), xById:new Map(), stemDirById:new Map()};
+
+  const titleDiv = document.createElement('div');
+  titleDiv.className = 'score-title';
+  titleDiv.textContent = state.title || 'Untitled Song';
+  hitLayer.appendChild(titleDiv);
+
+  const metaDiv = document.createElement('div');
+  metaDiv.className = 'score-meta';
+  metaDiv.textContent = `${getKeyDisplay()}   ·   ${state.timeSig}   ·   ${state.tempo || 90} BPM   ·   ${harmonyStyleConfig().name}`;
+  hitLayer.appendChild(metaDiv);
+
+  // Draw 4 measures per row, 4 rows by default.
+  for(let s=0; s<systemCount(); s++){
+    const sys = layout.systems[s];
+    if(!sys) continue;
+
+    for(let m=sys.first; m<=sys.last; m++){
+      const isFirst = m === sys.first;
+      const x = sys.starts[m];
+      const w = layout.widths[m];
+      const stave = new VF.Stave(x, sys.y, w);
+
+      if(isFirst){
+        stave.addClef('treble');
+        try{ stave.addKeySignature(vexKey()); }catch(err){}
+        stave.addTimeSignature(state.timeSig);
+      }
+
+      stave.setContext(ctx).draw();
+      renderInfo.staves.set(m, stave);
+
+      const noteX = staveNoteStartX(stave);
+      const noteEnd = staveNoteEndX(stave);
+
+      const box = {
+        measure:m,
+        system:s,
+        x:noteX,
+        y:sys.y - 22,
+        w:Math.max(20, noteEnd - noteX),
+        h:96,
+        stave
+      };
+
+      renderInfo.measureBoxes.push(box);
+
+      const hit = document.createElement('div');
+      hit.className = 'measure-hit';
+      hit.dataset.measure = String(m);
+      hit.dataset.system = String(s);
+      hit.style.left = box.x+'px';
+      hit.style.top = box.y+'px';
+      hit.style.width = box.w+'px';
+      hit.style.height = box.h+'px';
+      hitLayer.appendChild(hit);
+    }
+  }
+
+  for(let m=0; m<layout.measureCount; m++){
+    const stave = renderInfo.staves.get(m);
+    if(!stave) continue;
+
+    const {voice, notes, map, tuplets, beams, beamGroups, stemDirById} = createVoiceForMeasure(m);
+    const usable = Math.max(40, staveNoteEndX(stave) - staveNoteStartX(stave) - 10);
+
+    const desiredXById = new Map();
+
+    if(stemDirById){
+      for(const [id, dir] of stemDirById.entries()){
+        renderInfo.stemDirById.set(id, dir);
+      }
+    }
+
+    try{
+      new VF.Formatter().joinVoices([voice]).format([voice], usable);
+      voice.draw(ctx, stave);
+
+      // 음표 x좌표는 VexFlow가 계산한 실제 좌표를 그대로 사용한다.
+      // notehead를 강제로 translate하면 stem/beam과 notehead가 서로 따로 놀기 때문에 제거했다.
+      for(let i=0; i<notes.length; i++){
+        const e = map[i];
+        if(!e) continue;
+
+        let actualX = staveNoteStartX(stave);
+        try{ actualX = notes[i].getAbsoluteX(); }catch(err){}
+
+        desiredXById.set(e.id, actualX);
+        renderInfo.xById.set(e.id, actualX);
+      }
+
+      for(const beam of beams){
+        try{
+          beam.setContext(ctx).draw();
+        }catch(e){}
+      }
+
+      for(const tuplet of tuplets){
+        try{
+          tuplet.setContext(ctx).draw();
+        }catch(e){}
+      }
+
+      drawFixedBeamGroups(ctx, beamGroups, stave);
+    }catch(err){
+      console.warn('measure render failed', m, err);
+    }
+
+    for(let i=0; i<notes.length; i++){
+      const e = map[i];
+      if(!e) continue;
+
+      const note = notes[i];
+      renderInfo.noteById.set(e.id, note);
+
+      let nx = desiredXById.get(e.id) || staveNoteStartX(stave);
+
+      const box = {
+        id:e.id,
+        x:nx-12,
+        y:stave.getYForLine(0)-28,
+        w:24,
+        h:104
+      };
+
+      renderInfo.eventBoxes.push(box);
+
+      const evHit = document.createElement('div');
+      evHit.className = 'event-hit' + (isSelected(e.id) ? (state.selectedIds.length > 1 ? ' multi-selected' : ' selected') : '');
+      evHit.dataset.id = String(e.id);
+      evHit.style.left = box.x+'px';
+      evHit.style.top = box.y+'px';
+      evHit.style.width = box.w+'px';
+      evHit.style.height = box.h+'px';
+      hitLayer.appendChild(evHit);
+
+      if(e.fermata){
+        drawText(ctx, nx-8, stave.getYForLine(0)-18, '𝄐', e.id === currentPlayId ? '#e34848' : '#111', 24);
+      }
+
+      if(e.chord){
+        const chordSelected = isChordSelected(e.id);
+        drawChordOverlay(ctx, nx, stave, e.chord, chordSelected ? '#e34848' : (e.id === currentPlayId ? '#e34848' : '#111'));
+        createChordHit(e, nx, stave);
+      }
+
+      if(e.id === currentPlayId){
+        const ph = document.createElement('div');
+        ph.className = 'playhead';
+        ph.style.left = (nx-2)+'px';
+        ph.style.top = (stave.getYForLine(0)-24)+'px';
+        ph.style.height = '90px';
+        hitLayer.appendChild(ph);
+      }
+    }
+  }
+
+  drawTieOverlays(ctx);
+  updateSelectedButtons();
+  updateUndoRedoButtons();
+  updateStatus();
+}
+
+function drawText(ctx,x,y,text,color='#111',size=20){
+  try{
+    ctx.save();
+    ctx.setFillStyle(color);
+    ctx.setFont('serif',size,'normal');
+    ctx.fillText(text,x,y);
+    ctx.restore();
+  }catch(e){}
+}
+
+function chordTextYForStave(stave){
+  // 코드명은 system마다 같은 높이에 고정한다.
+  // top line보다 충분히 위로 올려 stem/beam과 겹치지 않게 한다.
+  return stave.getYForLine(0) - 44;
+}
+
+function drawChordOverlay(ctx, x, stave, text, color='#111'){
+  if(!text) return;
+
+  try{
+    ctx.save();
+    ctx.setFillStyle(color);
+    ctx.setFont('Arial',13,'bold');
+    ctx.fillText(text, x - 12, chordTextYForStave(stave));
+    ctx.restore();
+  }catch(e){}
+}
+
+function estimateChordTextWidth(text){
+  return Math.max(28, String(text || '').length * 8 + 12);
+}
+
+function createChordHit(e, x, stave){
+  if(!e || !e.chord || !renderInfo) return;
+
+  const y = chordTextYForStave(stave) - 15;
+  const w = estimateChordTextWidth(e.chord);
+  const box = {
+    id:e.id,
+    x:x - 15,
+    y:y,
+    w:w,
+    h:22
+  };
+
+  renderInfo.chordBoxes.push(box);
+
+  const chHit = document.createElement('div');
+  chHit.className = 'chord-hit' + (isChordSelected(e.id) ? ' selected' : '');
+  chHit.dataset.id = String(e.id);
+  chHit.style.left = box.x+'px';
+  chHit.style.top = box.y+'px';
+  chHit.style.width = box.w+'px';
+  chHit.style.height = box.h+'px';
+  hitLayer.appendChild(chHit);
+}
+
+function drawCurveSegment(ctx, x1, y1, x2, y2, side, strength, color){
+  const dx = Math.abs(x2 - x1);
+  if(dx < 6) return;
+
+  // 너무 짧은 말발굽형 곡선이 되지 않게 얕고 긴 악보형 베지어로 제한한다.
+  const c = Math.max(14, Math.min(42, dx * 0.32));
+  const lift = Math.max(5, Math.min(strength, dx * 0.10));
+  const thickness = Math.max(1.15, Math.min(2.0, dx * 0.018));
+
+  const c1x = x1 + c;
+  const c2x = x2 - c;
+  const c1y = y1 + side * lift;
+  const c2y = y2 + side * lift;
+
+  try{
+    ctx.save();
+    ctx.setStrokeStyle(color);
+    ctx.setLineWidth(thickness);
+    if(ctx.setLineCap) ctx.setLineCap('round');
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.bezierCurveTo(c1x, c1y, c2x, c2y, x2, y2);
+    ctx.stroke();
+
+    ctx.restore();
+  }catch(e){}
+}
+
+function accidentalIdentity(e){
+  if(!e || e.rest) return '';
+  return `${e.di}:${e.accidental || 'auto'}`;
+}
+
+function drawTieOverlays(ctx){
+  const sorted = [...state.events].sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id);
+
+  for(let i=0; i<sorted.length-1; i++){
+    const a = sorted[i];
+    const b = sorted[i+1];
+
+    if(!a.tieToNext || a.rest || b.rest) continue;
+
+    const ma = measureOfBeat(a.startBeat);
+    const mb = measureOfBeat(b.startBeat);
+    const sa = Math.floor(ma / MEASURES_PER_SYSTEM);
+    const sb = Math.floor(mb / MEASURES_PER_SYSTEM);
+
+    const staveA = renderInfo.staves.get(ma);
+    const staveB = renderInfo.staves.get(mb);
+    const na = renderInfo.noteById.get(a.id);
+    const nb = renderInfo.noteById.get(b.id);
+    if(!staveA || !staveB || !na || !nb) continue;
+
+    const samePitch = accidentalIdentity(a) === accidentalIdentity(b);
+
+    // 붙임줄/이음줄은 stem 방향의 반대쪽에 둔다.
+    // stem up -> 아래쪽, stem down -> 위쪽.
+    const side = tieSideOppositeStem(a, b);
+
+    const baseOffset = samePitch ? 7 : 13;
+    const strength = samePitch ? 8 : 18;
+
+    const color = (a.id === currentPlayId || isSelected(a.id)) ? '#e34848' : '#111';
+
+    try{
+      ctx.save();
+
+      let x1 = (renderInfo.xById.get(a.id) ?? na.getAbsoluteX()) + 8;
+      let x2 = (renderInfo.xById.get(b.id) ?? nb.getAbsoluteX()) - 8;
+      let y1 = eventHeadY(a, staveA) + side * baseOffset;
+      let y2 = eventHeadY(b, staveB) + side * baseOffset;
+
+      // 너무 짧은 연결선은 말발굽처럼 보이므로 최소 폭 확보
+      if(sa === sb && Math.abs(x2 - x1) < 26){
+        const mid = (x1 + x2) * 0.5;
+        x1 = mid - 13;
+        x2 = mid + 13;
+      }
+
+      if(sa === sb){
+        drawCurveSegment(ctx, x1, y1, x2, y2, side, strength, color);
+      }else{
+        const firstSystem = renderInfo.staves.get(ma);
+        const nextSystem = renderInfo.staves.get(mb);
+
+        const endX = firstSystem.getX() + firstSystem.getWidth() - 16;
+        const startX = nextSystem.getNoteStartX ? nextSystem.getNoteStartX() + 8 : nextSystem.getX() + 92;
+
+        drawCurveSegment(ctx, x1, y1, endX, y1, side, strength, color);
+        drawCurveSegment(ctx, startX, y2, x2, y2, side, strength, color);
+      }
+
+      ctx.restore();
+    }catch(e){}
+  }
+}
+
+function findMeasureBox(x,y){
+  if(!renderInfo) return null;
+  return renderInfo.measureBoxes.find(b => x>=b.x && x<=b.x+b.w && y>=b.y && y<=b.y+b.h) || null;
+}
+
+function findEventHit(x,y){
+  if(!renderInfo) return null;
+  return renderInfo.eventBoxes.find(b => x>=b.x && x<=b.x+b.w && y>=b.y && y<=b.y+b.h) || null;
+}
+
+function findChordHit(x,y){
+  if(!renderInfo) return null;
+  return (renderInfo.chordBoxes || []).find(b => x>=b.x && x<=b.x+b.w && y>=b.y && y<=b.y+b.h) || null;
+}
+
+function rectFromPoints(x1,y1,x2,y2){
+  const x = Math.min(x1,x2);
+  const y = Math.min(y1,y2);
+  return {x, y, w:Math.abs(x2-x1), h:Math.abs(y2-y1)};
+}
+
+function rectIntersects(a,b){
+  return !(a.x+a.w < b.x || b.x+b.w < a.x || a.y+a.h < b.y || b.y+b.h < a.y);
+}
+
+function showSelectionBox(rect){
+  if(!selectionDrag.boxEl){
+    selectionDrag.boxEl = document.createElement('div');
+    selectionDrag.boxEl.className = 'selection-box';
+    hitLayer.appendChild(selectionDrag.boxEl);
+  }
+  selectionDrag.boxEl.style.left = rect.x+'px';
+  selectionDrag.boxEl.style.top = rect.y+'px';
+  selectionDrag.boxEl.style.width = rect.w+'px';
+  selectionDrag.boxEl.style.height = rect.h+'px';
+}
+
+function clearSelectionBox(){
+  if(selectionDrag.boxEl && selectionDrag.boxEl.parentNode){
+    selectionDrag.boxEl.parentNode.removeChild(selectionDrag.boxEl);
+  }
+  selectionDrag.boxEl = null;
+}
+
+function updateHitSelectionClasses(){
+  document.querySelectorAll('.event-hit').forEach(el=>{
+    const id = Number(el.dataset.id);
+    const selected = isSelected(id);
+    el.classList.toggle('selected', selected && state.selectedIds.length <= 1);
+    el.classList.toggle('multi-selected', selected && state.selectedIds.length > 1);
+  });
+
+  document.querySelectorAll('.chord-hit').forEach(el=>{
+    const id = Number(el.dataset.id);
+    el.classList.toggle('selected', isChordSelected(id));
+  });
+}
+
+function updateSelectionFromDragRect(rect){
+  if(!renderInfo) return;
+
+  let noteIds = renderInfo.eventBoxes.filter(b=>rectIntersects(rect,b)).map(b=>b.id);
+  let chordIds = (renderInfo.chordBoxes || []).filter(b=>rectIntersects(rect,b)).map(b=>b.id);
+
+  if(selectionDrag.additive){
+    noteIds = [...new Set([...selectionDrag.baseNoteIds, ...noteIds])];
+    chordIds = [...new Set([...selectionDrag.baseChordIds, ...chordIds])];
+  }
+
+  setSelection(noteIds);
+  setChordSelection(chordIds);
+  updateHitSelectionClasses();
+  updateStatus();
+}
+
+function yToDi(y, box){
+  const stave = box.stave;
+  const bottom = stave.getYForLine(4);
+  const top = stave.getYForLine(0);
+  const step = (bottom - top) / 8;
+  const safeY = clamp(y, top - step*6, bottom + step*6);
+  return Math.round((bottom - safeY) / step + STAFF_REF_DI);
+}
+
+function getAppendBeat(){
+  // 새 음표/쉼표는 절대 중간에 삽입하지 않는다.
+  // 항상 현재 곡의 마지막 이벤트 뒤에 순서대로 붙인다.
+  if(!state.events.length) return 0;
+
+  let end = 0;
+  for(const e of state.events){
+    end = Math.max(end, e.startBeat + e.duration);
+  }
+
+  // 부동소수점 누적 오차 방지.
+  return Math.round(end * 1000) / 1000;
+}
+
+function targetBeatFromXY(x,y){
+  const box = findMeasureBox(x,y);
+  if(!box) return null;
+
+  const dur = inputDuration();
+  const mb = measureBeats();
+
+  if(dur > mb + 0.0001){
+    alert('현재 박자표에서는 선택한 음표/쉼표 길이가 한 마디보다 깁니다.');
+    return null;
+  }
+
+  // 시간 위치는 클릭한 x가 아니라 현재 곡의 마지막 이벤트 뒤로 순차 입력한다.
+  // 단, 현재 마디에 들어가지 않는 길이면 다음 마디로 넘긴다.
+  return getAppendBeat();
+}
+
+function makeInputEvent(startBeat, y, box){
+  const e = {
+    id:nextId++,
+    startBeat,
+    duration:inputDuration(),
+    baseDuration:state.duration,
+    dotMode:state.dotMode,
+    triplet:state.triplet,
+    chord:null,
+    fermata:false,
+    tieToNext:false
+  };
+
+  if(state.inputKind === 'rest'){
+    e.rest = true;
+  }else{
+    e.rest = false;
+    e.di = yToDi(y, box);
+    e.accidental = state.accidental;
+  }
+
+  return e;
+}
+
+function insertOrReplaceEvent(e){
+  // 입력은 append-only.
+  // 기존 음표와 같은 위치를 클릭해도 새 음표가 중간에 끼어들거나 교체되지 않게 한다.
+  pushHistory();
+  state.events.push(e);
+  sortEvents();
+  setSelection([e.id]);
+}
+
+function updateSelectedButtons(){
+  const e = selectedEvent();
+  const tie = document.getElementById('tieToggleBtn');
+  const ferm = document.getElementById('fermataToggleBtn');
+
+  tie.disabled = !(e && !e.rest);
+  tie.classList.toggle('active', !!(e && e.tieToNext));
+
+  ferm.disabled = !e;
+  ferm.classList.toggle('active', !!(e && e.fermata));
+}
+
+function updateStatus(){
+  const e = selectedEvent();
+  const voices = [];
+  if(state.voiceMask.melody) voices.push('Melody');
+  if(state.voiceMask.tenor) voices.push('Tenor');
+  if(state.voiceMask.alto) voices.push('Alto');
+
+  ensureSelectionState();
+  ensureChordSelectionState();
+  const noteSelectionText = state.selectedIds.length > 1 ? `${state.selectedIds.length}개 음표 선택` : (e ? '음표 ID '+e.id : '음표 선택 없음');
+  const chordSelectionText = state.selectedChordIds.length ? `코드 ${state.selectedChordIds.length}개 선택` : '코드 선택 없음';
+  const copiedText = copiedMode === 'chords' && copiedChordItems.length ? ` · 복사: 코드 ${copiedChordItems.length}개` : (copiedMode === 'events' && copiedEvents.length ? ` · 복사: 음표 ${copiedEvents.length}개` : '');
+  statusEl.textContent = `Mode: ${state.editMode === 'select' ? 'Select' : 'Pencil'} · ${noteSelectionText} · ${chordSelectionText}${copiedText} · 표시/재생: ${voices.join(' + ') || 'None'} · Inst M/T/A: ${(state.instrumentMelody||'piano')} / ${(state.instrumentTenor||'electricPiano')} / ${(state.instrumentAlto||'organ')} · Chord Pad: ${state.chordPadEnabled ? 'ON' : 'OFF'} ${Math.round((state.chordPadVolume ?? 0.38)*100)}% · Master: ${Math.round((state.masterVolume ?? 0.82)*100)}% · Harmony: ${harmonyStyleConfig().name}${state.triplet ? ' · Triplet ON' : ''}`;
+}
+
+function syncUi(){
+  titleInput.value = state.title;
+  keyRootSelect.value = state.keyRoot;
+  keyModeSelect.value = state.keyMode;
+  timeSelect.value = state.timeSig;
+  tempoInput.value = state.tempo;
+  styleSelect.value = state.harmonyStyle || 'ccm';
+  if(chordPadVolumeSlider){
+    chordPadVolumeSlider.value = state.chordPadVolume ?? 0.38;
+    chordPadVolumeValue.textContent = `${Math.round((state.chordPadVolume ?? 0.38) * 100)}%`;
+  }
+  if(masterVolumeSlider){
+    masterVolumeSlider.value = state.masterVolume ?? 0.82;
+    masterVolumeValue.textContent = `${Math.round((state.masterVolume ?? 0.82) * 100)}%`;
+  }
+  melodyInstrumentSelect.value = state.instrumentMelody || 'piano';
+  tenorInstrumentSelect.value = state.instrumentTenor || 'electricPiano';
+  altoInstrumentSelect.value = state.instrumentAlto || 'organ';
+  chordPadInstrumentSelect.value = state.instrumentChordPad || 'synthPad';
+
+  document.querySelectorAll('.note-length').forEach(b=>b.classList.toggle('active', state.inputKind==='note' && Number(b.dataset.duration) === state.duration));
+  document.querySelectorAll('.rest-length').forEach(b=>b.classList.toggle('active', state.inputKind==='rest' && Number(b.dataset.duration) === state.duration));
+  document.querySelectorAll('.dot-mode').forEach(b=>b.classList.toggle('active', Number(b.dataset.dot) === state.dotMode));
+  const tripletBtn = document.getElementById('tripletBtn');
+  if(tripletBtn) tripletBtn.classList.toggle('active', !!state.triplet);
+  document.querySelectorAll('.accidental-mode').forEach(b=>b.classList.toggle('active', b.dataset.accidental === state.accidental));
+
+  updateVoiceButtons();
+  const chordPadBtn = document.getElementById('chordPadBtn');
+  if(chordPadBtn) chordPadBtn.classList.toggle('active', !!state.chordPadEnabled);
+  setEditMode(state.editMode || 'draw');
+  updateUndoRedoButtons();
+  updateChordOptions();
+  render();
+}
+
+function updateVoiceButtons(){
+  const all = state.voiceMask.melody && state.voiceMask.tenor && state.voiceMask.alto;
+  document.querySelectorAll('.voice-view').forEach(b=>{
+    const v = b.dataset.voice;
+    b.classList.toggle('active', v === 'all' ? all : !!state.voiceMask[v]);
+  });
+}
+
+function selectEvent(id, additive=false){
+  if(additive) toggleSelection(id);
+  else{
+    setSelection([id]);
+    clearChordSelection();
+  }
+  render();
+}
+
+function selectChord(id, additive=false){
+  if(additive) toggleChordSelection(id);
+  else{
+    clearSelection();
+    setChordSelection([id]);
+  }
+  render();
+}
+
+function deleteSelected(){
+  ensureSelectionState();
+  ensureChordSelectionState();
+
+  if(state.selectedChordIds.length && !state.selectedIds.length){
+    pushHistory();
+    for(const id of state.selectedChordIds){
+      const e = eventById(id);
+      if(e) e.chord = null;
+    }
+    clearChordSelection();
+    render();
+    return;
+  }
+
+  if(!state.selectedIds.length) return;
+
+  pushHistory();
+
+  const remove = new Set(state.selectedIds);
+  state.events = state.events.filter(e=>!remove.has(e.id));
+  clearSelection();
+  clearChordSelection();
+  render();
+}
+
+function deleteLast(){
+  if(!state.events.length) return;
+
+  pushHistory();
+
+  sortEvents();
+  const removed = state.events.pop();
+  setSelection(state.events.length ? [state.events[state.events.length-1].id] : []);
+  render();
+}
+
+function clearAll(){
+  if(!confirm('전체 삭제할까요?')) return;
+
+  pushHistory();
+
+  state.events = [];
+  clearSelection();
+  render();
+}
+
+function applyChord(){
+  ensureChordSelectionState();
+  const chordTargets = selectedChordEvents();
+  const noteTargets = selectedEvents();
+  const targets = chordTargets.length ? chordTargets : noteTargets;
+  if(!targets.length) return;
+
+  pushHistory();
+
+  for(const e of targets){
+    e.chord = getChordText();
+  }
+
+  if(chordTargets.length) setChordSelection(targets.map(e=>e.id));
+  render();
+}
+
+function removeChord(){
+  ensureChordSelectionState();
+  const chordTargets = selectedChordEvents();
+
+  if(chordTargets.length){
+    pushHistory();
+    for(const e of chordTargets) e.chord = null;
+    clearChordSelection();
+    render();
+    return;
+  }
+
+  const targets = selectedEvents();
+  if(!targets.length) return;
+
+  pushHistory();
+
+  for(const e of targets) e.chord = null;
+  render();
+}
+
+function toggleTie(){
+  const e = selectedEvent();
+  if(!e || e.rest) return;
+
+  pushHistory();
+
+  e.tieToNext = !e.tieToNext;
+  render();
+}
+
+function toggleFermata(){
+  const e = selectedEvent();
+  if(!e) return;
+
+  pushHistory();
+
+  e.fermata = !e.fermata;
+  render();
+}
+
+function midiToFreq(midi){
+  return 440 * Math.pow(2,(midi-69)/12);
+}
+
+function masterVolumeValueSafe(){
+  return clamp(Number(state.masterVolume ?? 0.82), 0, 1);
+}
+
+function masterDestination(ctx){
+  if(!ctx._tcMasterGain){
+    ctx._tcMasterGain = ctx.createGain();
+    ctx._tcMasterGain.gain.value = masterVolumeValueSafe();
+    ctx._tcMasterGain.connect(ctx.destination);
+  }else{
+    try{
+      ctx._tcMasterGain.gain.setTargetAtTime(masterVolumeValueSafe(), ctx.currentTime, 0.015);
+    }catch(e){
+      ctx._tcMasterGain.gain.value = masterVolumeValueSafe();
+    }
+  }
+  return ctx._tcMasterGain;
+}
+
+function stopPlayback(){
+  playbackTimers.forEach(clearTimeout);
+  playbackTimers = [];
+
+  if(currentAudioContext){
+    try{ currentAudioContext.close(); }catch(e){}
+    currentAudioContext = null;
+  }
+
+  currentPlayId = null;
+  render();
+}
+
+function playPiano(ctx,midi,start,dur,level=.13){
+  const freq = midiToFreq(midi);
+  [1,2,3].forEach((p,i)=>{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = i===0 ? 'triangle' : 'sine';
+    osc.frequency.value = freq*p;
+    const g = level * [1,.36,.16][i];
+
+    gain.gain.setValueAtTime(.0001,start);
+    gain.gain.exponentialRampToValueAtTime(g,start+.006);
+    gain.gain.exponentialRampToValueAtTime(g*.34,start+.08);
+    gain.gain.exponentialRampToValueAtTime(.0001,start+dur+.12);
+
+    osc.connect(gain);
+    gain.connect(masterDestination(ctx));
+    osc.start(start);
+    osc.stop(start+dur+.15);
+  });
+}
+function voiceInstrument(voice){
+  if(voice === 'melody') return state.instrumentMelody || 'piano';
+  if(voice === 'tenor') return state.instrumentTenor || 'electricPiano';
+  if(voice === 'alto') return state.instrumentAlto || 'organ';
+  return 'piano';
+}
+
+function playOscNote(ctx, midi, start, dur, opts){
+  const freq = midiToFreq(midi);
+  const waves = opts.waves || ['sine'];
+  const detunes = opts.detunes || [0];
+  const gains = opts.gains || [1];
+  const attack = opts.attack ?? 0.01;
+  const release = opts.release ?? 0.12;
+  const sustain = opts.sustain ?? 0.65;
+  const level = opts.level ?? 0.12;
+  const filterFreq = opts.filterFreq || 0;
+
+  waves.forEach((wave, i)=>{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    let output = gain;
+
+    osc.type = wave;
+    osc.frequency.value = freq;
+    osc.detune.value = detunes[i] || 0;
+
+    const layerLevel = level * (gains[i] ?? 1);
+
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.linearRampToValueAtTime(layerLevel, start + attack);
+    gain.gain.setValueAtTime(layerLevel * sustain, Math.max(start + attack + 0.02, start + dur - release));
+    gain.gain.linearRampToValueAtTime(0.0001, start + dur + release);
+
+    if(filterFreq){
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(filterFreq, start);
+      filter.Q.value = 0.5;
+      osc.connect(filter);
+      filter.connect(gain);
+    }else{
+      osc.connect(gain);
+    }
+
+    output.connect(masterDestination(ctx));
+    osc.start(start);
+    osc.stop(start + dur + release + 0.04);
+  });
+}
+
+function playInstrumentNote(ctx, midi, start, dur, level=.13, instrument='piano'){
+  if(instrument === 'piano') {
+    playPiano(ctx, midi, start, dur, level);
+    return;
+  }
+
+  if(instrument === 'electricPiano'){
+    playOscNote(ctx, midi, start, dur, {
+      waves:['sine','triangle'],
+      detunes:[0,3],
+      gains:[1,0.45],
+      attack:0.015,
+      release:0.18,
+      sustain:0.45,
+      level,
+      filterFreq:2200
+    });
+    return;
+  }
+
+  if(instrument === 'organ'){
+    playOscNote(ctx, midi, start, dur, {
+      waves:['sine','square','sine'],
+      detunes:[0,0,1200],
+      gains:[1,0.22,0.16],
+      attack:0.02,
+      release:0.08,
+      sustain:0.85,
+      level:level*0.75,
+      filterFreq:1800
+    });
+    return;
+  }
+
+  if(instrument === 'synthLead'){
+    playOscNote(ctx, midi, start, dur, {
+      waves:['sawtooth','square'],
+      detunes:[-5,5],
+      gains:[0.75,0.25],
+      attack:0.01,
+      release:0.10,
+      sustain:0.55,
+      level:level*0.75,
+      filterFreq:1500
+    });
+    return;
+  }
+
+  if(instrument === 'choir'){
+    playOscNote(ctx, midi, start, dur, {
+      waves:['sine','triangle'],
+      detunes:[-8,8],
+      gains:[0.7,0.5],
+      attack:0.18,
+      release:0.35,
+      sustain:0.82,
+      level:level*0.6,
+      filterFreq:1200
+    });
+    return;
+  }
+
+  if(instrument === 'strings'){
+    playOscNote(ctx, midi, start, dur, {
+      waves:['sawtooth','triangle'],
+      detunes:[-4,4],
+      gains:[0.55,0.45],
+      attack:0.12,
+      release:0.28,
+      sustain:0.78,
+      level:level*0.65,
+      filterFreq:1000
+    });
+    return;
+  }
+
+  if(instrument === 'synthPad'){
+    playOscNote(ctx, midi, start, dur, {
+      waves:['sawtooth','sine'],
+      detunes:[-6,6],
+      gains:[0.55,0.45],
+      attack:0.20,
+      release:0.40,
+      sustain:0.9,
+      level,
+      filterFreq:1400
+    });
+    return;
+  }
+
+  playPiano(ctx, midi, start, dur, level);
+}
+
+
+function pcToMidiInRange(pc, minMidi, maxMidi){
+  for(let m=minMidi; m<=maxMidi; m++){
+    if(mod(m,12) === mod(pc,12)) return m;
+  }
+  return minMidi;
+}
+
+function chordPadMidis(chordText){
+  const pcs = parseChordPcs(chordText);
+
+  // 세컨건반/패드 느낌: 너무 낮으면 탁하고 너무 높으면 멜로디를 방해하므로
+  // C3~C5 근처의 중역대 코드톤 위주로 배치한다.
+  const mids = [];
+  const lowRange = [48, 59];   // C3~B3
+  const midRange = [60, 72];   // C4~C5
+
+  if(pcs.length){
+    mids.push(pcToMidiInRange(pcs[0], lowRange[0], lowRange[1]));
+  }
+
+  for(let i=1; i<pcs.length && mids.length<5; i++){
+    mids.push(pcToMidiInRange(pcs[i], midRange[0], midRange[1]));
+  }
+
+  // 3화음 이하일 때는 root를 위쪽에 한 번 더 더해서 패드 밀도를 살짝 보강
+  if(mids.length < 4 && pcs.length){
+    const upperRoot = pcToMidiInRange(pcs[0], 60, 72);
+    if(!mids.includes(upperRoot)) mids.push(upperRoot);
+  }
+
+  return [...new Set(mids)].slice(0,5);
+}
+
+function getSortedEvents(){
+  return [...state.events].sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id);
+}
+
+function buildChordSegments(sorted){
+  if(!sorted.length) return [];
+
+  const segments = [];
+  let currentChord = null;
+  let segmentStart = 0;
+
+  for(let i=0; i<sorted.length; i++){
+    const e = sorted[i];
+    const chord = effectiveChord(e);
+
+    if(currentChord === null){
+      currentChord = chord;
+      segmentStart = e.startBeat;
+      continue;
+    }
+
+    if(chord !== currentChord){
+      segments.push({
+        chord: currentChord,
+        startBeat: segmentStart,
+        endBeat: e.startBeat
+      });
+      currentChord = chord;
+      segmentStart = e.startBeat;
+    }
+  }
+
+  const endBeat = sorted.reduce((m,e)=>Math.max(m,e.startBeat+e.duration),0);
+  segments.push({
+    chord: currentChord,
+    startBeat: segmentStart,
+    endBeat
+  });
+
+  return segments.filter(s => s.endBeat > s.startBeat + 0.0001);
+}
+
+function playSynthPadNote(ctx, midi, start, dur, level=.045){
+  const freq = midiToFreq(midi);
+
+  // 부드러운 신스 패드용: detune된 saw + sine를 아주 작게 섞는다.
+  const osc1 = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+
+  osc1.type = 'sawtooth';
+  osc2.type = 'sine';
+
+  osc1.frequency.value = freq;
+  osc2.frequency.value = freq;
+  osc1.detune.value = -6;
+  osc2.detune.value = 5;
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(1400, start);
+  filter.Q.value = 0.4;
+
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.linearRampToValueAtTime(level, start + 0.18);
+  gain.gain.setValueAtTime(level * 0.9, Math.max(start + 0.2, start + dur - 0.28));
+  gain.gain.linearRampToValueAtTime(0.0001, start + dur + 0.12);
+
+  osc1.connect(filter);
+  osc2.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterDestination(ctx));
+
+  osc1.start(start);
+  osc2.start(start);
+  osc1.stop(start + dur + 0.18);
+  osc2.stop(start + dur + 0.18);
+}
+
+function scheduleChordPad(ctx, sorted, start, beatSec, playFromBeat=0){
+  if(!state.chordPadEnabled) return;
+
+  const segments = buildChordSegments(sorted);
+
+  for(const seg of segments){
+    if(seg.endBeat <= playFromBeat + 0.0001) continue;
+
+    const segStart = Math.max(seg.startBeat, playFromBeat);
+    const when = start + (segStart - playFromBeat) * beatSec;
+    const dur = Math.max(0.08, (seg.endBeat - segStart) * beatSec);
+    const midis = chordPadMidis(seg.chord);
+
+    const padLevel = 0.10 * (state.chordPadVolume ?? 0.38);
+
+    midis.forEach(midi => {
+      playInstrumentNote(ctx, midi, when, dur, padLevel, state.instrumentChordPad || 'synthPad');
+    });
+  }
+}
+
+function voiceMidi(e, voice){
+  if(!e || e.rest) return null;
+  if(voice === 'melody') return diToMidi(e.di, e.accidental);
+  if(voice === 'tenor') return e.tenor !== null && e.tenor !== undefined ? e.tenor : null;
+  if(voice === 'alto') return e.alto !== null && e.alto !== undefined ? e.alto : null;
+  return null;
+}
+
+function activeVoices(){
+  const v = [];
+  if(state.voiceMask.melody) v.push('melody');
+  if(state.voiceMask.tenor) v.push('tenor');
+  if(state.voiceMask.alto) v.push('alto');
+  return v;
+}
+
+function previousLinkedSamePitch(sorted, index, voice){
+  if(index <= 0) return false;
+  const prev = sorted[index - 1];
+  const cur = sorted[index];
+
+  if(!prev || !cur || prev.rest || cur.rest || !prev.tieToNext) return false;
+
+  const a = voiceMidi(prev, voice);
+  const b = voiceMidi(cur, voice);
+
+  return a !== null && b !== null && a === b;
+}
+
+function linkedSamePitchDuration(sorted, index, voice){
+  let dur = sorted[index].duration;
+  let j = index;
+
+  while(j < sorted.length - 1){
+    const cur = sorted[j];
+    const next = sorted[j + 1];
+
+    if(!cur || !next || cur.rest || next.rest || !cur.tieToNext) break;
+
+    const a = voiceMidi(cur, voice);
+    const b = voiceMidi(next, voice);
+
+    if(a === null || b === null || a !== b) break;
+
+    dur += next.duration;
+    j++;
+  }
+
+  return dur;
+}
+
+function scheduleSongNotes(ctx, sorted, start, beatSec, playFromBeat=0, withPlayhead=false){
+  for(let i=0; i<sorted.length; i++){
+    const e = sorted[i];
+    if(e.startBeat + e.duration <= playFromBeat + 0.0001) continue;
+
+    const when = start + (e.startBeat - playFromBeat) * beatSec;
+
+    if(withPlayhead){
+      playbackTimers.push(setTimeout(()=>{
+        currentPlayId = e.id;
+        render();
+      }, Math.max(0,(when-ctx.currentTime)*1000)));
+    }
+
+    if(e.rest) continue;
+
+    for(const voice of activeVoices()){
+      const midi = voiceMidi(e, voice);
+      if(midi === null) continue;
+
+      if(previousLinkedSamePitch(sorted, i, voice)) continue;
+
+      const mergedDur = linkedSamePitchDuration(sorted, i, voice);
+      const slurLike = !!e.tieToNext;
+      const durFactor = slurLike ? 1.02 : .9;
+      const dur = mergedDur * beatSec * (e.fermata ? 1.5 : 1);
+
+      playInstrumentNote(ctx, midi, when, dur * durFactor, .13, voiceInstrument(voice));
+    }
+  }
+}
+
+function audioEndBeat(sorted){
+  return sorted.reduce((m,e)=>Math.max(m,e.startBeat+e.duration),0);
+}
+
+function audioBufferToWavBlob(buffer){
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const length = buffer.length;
+  const bytesPerSample = 2;
+  const blockAlign = numChannels * bytesPerSample;
+  const dataSize = length * blockAlign;
+  const arrayBuffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(arrayBuffer);
+
+  function writeString(offset, str){
+    for(let i=0; i<str.length; i++) view.setUint8(offset+i, str.charCodeAt(i));
+  }
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bytesPerSample * 8, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  const channels = [];
+  for(let ch=0; ch<numChannels; ch++) channels.push(buffer.getChannelData(ch));
+
+  let offset = 44;
+  for(let i=0; i<length; i++){
+    for(let ch=0; ch<numChannels; ch++){
+      const s = Math.max(-1, Math.min(1, channels[ch][i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([arrayBuffer], {type:'audio/wav'});
+}
+
+async function downloadAudioWav(){
+  stopPlayback();
+  generateHarmony();
+
+  const sorted = getSortedEvents();
+  if(!sorted.length){
+    alert('다운로드할 음표가 없습니다.');
+    return;
+  }
+
+  const OfflineAudioContextCtor = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if(!OfflineAudioContextCtor){
+    alert('이 브라우저에서는 오프라인 오디오 렌더링을 지원하지 않습니다.');
+    return;
+  }
+
+  const btn = document.getElementById('downloadAudioBtn');
+  const oldLabel = btn ? btn.textContent : '';
+
+  try{
+    if(btn){
+      btn.disabled = true;
+      btn.textContent = '렌더링...';
+    }
+
+    const beatSec = 60 / (state.tempo || 90);
+    const sampleRate = 44100;
+    const start = 0.08;
+    const endBeat = audioEndBeat(sorted);
+    const durationSec = Math.max(1.0, start + endBeat * beatSec + 1.4);
+    const frameCount = Math.ceil(durationSec * sampleRate);
+    const offlineCtx = new OfflineAudioContextCtor(2, frameCount, sampleRate);
+
+    scheduleChordPad(offlineCtx, sorted, start, beatSec, 0);
+    scheduleSongNotes(offlineCtx, sorted, start, beatSec, 0, false);
+
+    const buffer = await offlineCtx.startRendering();
+    const blob = audioBufferToWavBlob(buffer);
+    const url = URL.createObjectURL(blob);
+    const safe = (state.title || 'tenor_calculator_audio').replace(/[\/:*?"<>|]/g,'_').trim() || 'tenor_calculator_audio';
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = safe + '.wav';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }catch(err){
+    console.error(err);
+    alert('음원 렌더링에 실패했습니다. 콘솔 로그를 확인해 주세요.');
+  }finally{
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = oldLabel || 'WAV 다운로드';
+    }
+  }
+}
+
+function play(){
+  stopPlayback();
+  generateHarmony();
+
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AudioContext();
+  currentAudioContext = ctx;
+
+  const beatSec = 60 / (state.tempo || 90);
+  const start = ctx.currentTime + .08;
+  const sorted = getSortedEvents();
+
+  const selected = selectedEvents();
+  const playFromBeat = selected.length ? Math.min(...selected.map(e => e.startBeat)) : 0;
+
+  scheduleChordPad(ctx, sorted, start, beatSec, playFromBeat);
+  scheduleSongNotes(ctx, sorted, start, beatSec, playFromBeat, true);
+
+  const endBeat = audioEndBeat(sorted);
+  playbackTimers.push(setTimeout(()=>{
+    currentPlayId = null;
+    render();
+  }, Math.max(0,(start+(endBeat-playFromBeat)*beatSec-ctx.currentTime+.3)*1000)));
+}
+
+function saveBrowser(){
+  localStorage.setItem('tenorCalculatorVexFlowCCM', JSON.stringify({state,nextId}));
+  alert('브라우저에 저장했습니다.');
+}
+
+function loadBrowser(){
+  const s = localStorage.getItem('tenorCalculatorVexFlowCCM');
+  if(!s){ alert('저장된 곡이 없습니다.'); return; }
+  try{
+    const data = JSON.parse(s);
+    state = data.state;
+    nextId = data.nextId || 1;
+    normalize();
+    syncUi();
+  }catch(e){
+    alert('브라우저 저장 데이터를 불러오지 못했습니다.');
+  }
+}
+
+function downloadJson(){
+  const blob = new Blob([JSON.stringify({state,nextId}, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const safe = (state.title || 'tenor_calculator_song').replace(/[\\/:*?"<>|]/g,'_').trim() || 'tenor_calculator_song';
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = safe+'.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function uploadJson(file){
+  const r = new FileReader();
+  r.onload = ev=>{
+    try{
+      const data = JSON.parse(ev.target.result);
+      state = data.state || data;
+      nextId = data.nextId || Math.max(1, ...state.events.map(e=>e.id||0)) + 1;
+      normalize();
+      undoStack = [];
+      redoStack = [];
+      syncUi();
+    }catch(e){
+      alert('JSON 파일을 불러오지 못했습니다.');
+    }
+  };
+  r.readAsText(file);
+}
+
+function normalize(){
+  if(!state.events) state.events = [];
+  if(!state.voiceMask) state.voiceMask = {melody:true,tenor:true,alto:true};
+  if(state.chordPadEnabled === undefined) state.chordPadEnabled = false;
+  if(!state.editMode) state.editMode = 'draw';
+  if(state.selectedId === undefined) state.selectedId = null;
+  if(!Array.isArray(state.selectedIds)) state.selectedIds = state.selectedId === null ? [] : [state.selectedId];
+  if(!Array.isArray(state.selectedChordIds)) state.selectedChordIds = [];
+  if(!state.keyRoot) state.keyRoot = 'C';
+  if(!state.keyMode) state.keyMode = 'major';
+  if(!state.timeSig) state.timeSig = '4/4';
+  if(!state.harmonyStyle) state.harmonyStyle = 'ccm';
+  if(state.chordPadVolume === undefined) state.chordPadVolume = 0.38;
+  if(state.masterVolume === undefined || state.masterVolume === null) state.masterVolume = 0.82;
+  state.masterVolume = clamp(Number(state.masterVolume), 0, 1);
+  if(!state.instrumentMelody) state.instrumentMelody = 'piano';
+  if(!state.instrumentTenor) state.instrumentTenor = 'electricPiano';
+  if(!state.instrumentAlto) state.instrumentAlto = 'organ';
+  if(!state.instrumentChordPad) state.instrumentChordPad = 'synthPad';
+  if(state.triplet === undefined) state.triplet = false;
+  if(!state.accidental) state.accidental = 'auto';
+
+  for(const e of state.events){
+    if(!e.id) e.id = nextId++;
+    if(e.startBeat === undefined) e.startBeat = 0;
+    if(e.duration === undefined) e.duration = 1;
+    if(e.baseDuration === undefined) e.baseDuration = e.duration;
+    if(e.dotMode === undefined) e.dotMode = 0;
+    if(e.triplet === undefined) e.triplet = false;
+    if(e.fermata === undefined) e.fermata = false;
+    if(e.tieToNext === undefined) e.tieToNext = false;
+    if(!e.rest && !e.accidental) e.accidental = 'auto';
+  }
+
+  ensureSelectionState();
+  ensureChordSelectionState();
+}
+
+function initEvents(){
+  document.getElementById('pencilModeBtn').addEventListener('click', ()=>setEditMode('draw'));
+  document.getElementById('selectModeBtn').addEventListener('click', ()=>setEditMode('select'));
+  document.getElementById('undoBtn').addEventListener('click', undo);
+  document.getElementById('redoBtn').addEventListener('click', redo);
+
+  titleInput.addEventListener('input', ()=>{ state.title=titleInput.value; render(); });
+  keyRootSelect.addEventListener('change', ()=>{ state.keyRoot=keyRootSelect.value; render(); });
+  keyModeSelect.addEventListener('change', ()=>{ state.keyMode=keyModeSelect.value; render(); });
+  timeSelect.addEventListener('change', ()=>{ state.timeSig=timeSelect.value; render(); });
+  tempoInput.addEventListener('change', ()=>{ state.tempo=Number(tempoInput.value)||90; render(); });
+  styleSelect.addEventListener('change', ()=>{ state.harmonyStyle=styleSelect.value; render(); });
+  chordPadVolumeSlider.addEventListener('input', ()=>{
+    state.chordPadVolume = Number(chordPadVolumeSlider.value);
+    chordPadVolumeValue.textContent = `${Math.round(state.chordPadVolume * 100)}%`;
+    updateStatus();
+  });
+
+  if(masterVolumeSlider){
+    masterVolumeSlider.addEventListener('input', ()=>{
+      state.masterVolume = clamp(parseFloat(masterVolumeSlider.value) || 0, 0, 1);
+      masterVolumeValue.textContent = `${Math.round(state.masterVolume * 100)}%`;
+
+      if(currentAudioContext && currentAudioContext._tcMasterGain){
+        try{
+          currentAudioContext._tcMasterGain.gain.setTargetAtTime(
+            state.masterVolume,
+            currentAudioContext.currentTime,
+            0.01
+          );
+        }catch(e){
+          currentAudioContext._tcMasterGain.gain.value = state.masterVolume;
+        }
+      }
+
+      updateStatus();
+    });
+  }
+  melodyInstrumentSelect.addEventListener('change', ()=>{ state.instrumentMelody = melodyInstrumentSelect.value; updateStatus(); });
+  tenorInstrumentSelect.addEventListener('change', ()=>{ state.instrumentTenor = tenorInstrumentSelect.value; updateStatus(); });
+  altoInstrumentSelect.addEventListener('change', ()=>{ state.instrumentAlto = altoInstrumentSelect.value; updateStatus(); });
+  chordPadInstrumentSelect.addEventListener('change', ()=>{ state.instrumentChordPad = chordPadInstrumentSelect.value; updateStatus(); });
+
+  document.querySelectorAll('.note-length').forEach(b=>b.addEventListener('click',()=>{ state.inputKind='note'; state.duration=Number(b.dataset.duration); syncUi(); }));
+  document.querySelectorAll('.rest-length').forEach(b=>b.addEventListener('click',()=>{ state.inputKind='rest'; state.duration=Number(b.dataset.duration); syncUi(); }));
+  document.querySelectorAll('.dot-mode').forEach(b=>b.addEventListener('click',()=>{ state.dotMode=Number(b.dataset.dot); syncUi(); }));
+  document.getElementById('tripletBtn').addEventListener('click',()=>{ state.triplet=!state.triplet; syncUi(); });
+  document.querySelectorAll('.accidental-mode').forEach(b=>b.addEventListener('click',()=>{ state.accidental=b.dataset.accidental; syncUi(); }));
+
+  [chordRootSelect,chordAccSelect,chordTypeSelect,chordExtSelect,chordAddSelect,chordAltSelect,slashBassSelect].forEach(el=>{
+    el.addEventListener('change', updateChordOptions);
+  });
+
+  document.getElementById('applyChordBtn').addEventListener('click', applyChord);
+  document.getElementById('removeChordBtn').addEventListener('click', removeChord);
+  document.getElementById('tieToggleBtn').addEventListener('click', toggleTie);
+  document.getElementById('fermataToggleBtn').addEventListener('click', toggleFermata);
+  document.getElementById('deleteSelectedBtn').addEventListener('click', deleteSelected);
+  document.getElementById('deleteBtn').addEventListener('click', deleteLast);
+  document.getElementById('clearBtn').addEventListener('click', clearAll);
+
+  document.querySelectorAll('.voice-view').forEach(b=>b.addEventListener('click',()=>{
+    const v = b.dataset.voice;
+    if(v === 'all') state.voiceMask = {melody:true,tenor:true,alto:true};
+    else state.voiceMask[v] = !state.voiceMask[v];
+    updateVoiceButtons();
+    render();
+  }));
+
+  document.getElementById('chordPadBtn').addEventListener('click', ()=>{
+    state.chordPadEnabled = !state.chordPadEnabled;
+    syncUi();
+  });
+  document.getElementById('playBtn').addEventListener('click', play);
+  document.getElementById('stopBtn').addEventListener('click', stopPlayback);
+  document.getElementById('downloadAudioBtn').addEventListener('click', downloadAudioWav);
+  document.getElementById('rewindBtn').addEventListener('click', ()=>{
+    stopPlayback();
+    scoreWrap.scrollLeft = 0;
+    scoreWrap.scrollTop = 0;
+    const first = state.events.length ? [...state.events].sort((a,b)=>a.startBeat-b.startBeat)[0].id : null;
+    setSelection(first === null ? [] : [first]);
+    clearChordSelection();
+    render();
+  });
+
+  document.getElementById('saveBrowserBtn').addEventListener('click', saveBrowser);
+  document.getElementById('loadBrowserBtn').addEventListener('click', loadBrowser);
+  document.getElementById('downloadJsonBtn').addEventListener('click', downloadJson);
+  document.getElementById('uploadJsonBtn').addEventListener('click', ()=>document.getElementById('uploadJsonInput').click());
+  document.getElementById('uploadJsonInput').addEventListener('change', e=>{
+    const f = e.target.files[0];
+    if(f) uploadJson(f);
+  });
+
+  hitLayer.addEventListener('pointerdown', e=>{
+    const rect = scoreSurface.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const additive = !!(e.ctrlKey || e.metaKey || e.shiftKey);
+
+    const chordHit = findChordHit(x,y);
+    if(chordHit){
+      selectChord(chordHit.id, additive);
+      drag = {active:false,id:null,historyPushed:false};
+      selectionDrag.active = false;
+      return;
+    }
+
+    const hit = findEventHit(x,y);
+    if(hit){
+      selectEvent(hit.id, additive);
+
+      // Select 모드에서는 추가/수정/드래그를 절대 하지 않는다.
+      if(state.editMode === 'select'){
+        drag = {active:false,id:null,historyPushed:false};
+        selectionDrag.active = false;
+        return;
+      }
+
+      const ev = eventById(hit.id);
+      if(ev && !ev.rest){
+        drag = {active:true,id:hit.id,historyPushed:false};
+        hitLayer.setPointerCapture(e.pointerId);
+      }
+      return;
+    }
+
+    if(state.editMode === 'select'){
+      selectionDrag = {
+        active:true,
+        startX:x,
+        startY:y,
+        lastX:x,
+        lastY:y,
+        additive,
+        baseNoteIds:[...(state.selectedIds || [])],
+        baseChordIds:[...(state.selectedChordIds || [])],
+        boxEl:null
+      };
+      showSelectionBox(rectFromPoints(x,y,x,y));
+      hitLayer.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    const box = findMeasureBox(x,y);
+    if(!box) return;
+
+    const startBeat = targetBeatFromXY(x,y);
+    if(startBeat === null) return;
+
+    const ev = makeInputEvent(startBeat, y, box);
+    insertOrReplaceEvent(ev);
+    clearChordSelection();
+    render();
+  });
+
+  hitLayer.addEventListener('pointermove', e=>{
+    const rect = scoreSurface.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if(selectionDrag.active){
+      selectionDrag.lastX = x;
+      selectionDrag.lastY = y;
+      const selRect = rectFromPoints(selectionDrag.startX, selectionDrag.startY, x, y);
+      showSelectionBox(selRect);
+      updateSelectionFromDragRect(selRect);
+      return;
+    }
+
+    if(!drag.active || state.editMode !== 'draw') return;
+
+    const ev = eventById(drag.id);
+    if(!ev || ev.rest) return;
+
+    const measure = measureOfBeat(ev.startBeat);
+    const box = renderInfo.measureBoxes.find(b=>b.measure===measure);
+
+    if(!box) return;
+
+    if(!drag.historyPushed){
+      pushHistory();
+      drag.historyPushed = true;
+    }
+
+    ev.di = yToDi(y, box);
+    render();
+  });
+
+  hitLayer.addEventListener('pointerup', e=>{
+    if(selectionDrag.active){
+      const dx = Math.abs(selectionDrag.lastX - selectionDrag.startX);
+      const dy = Math.abs(selectionDrag.lastY - selectionDrag.startY);
+
+      if(dx < 4 && dy < 4 && !selectionDrag.additive){
+        clearSelection();
+        clearChordSelection();
+      }else{
+        const selRect = rectFromPoints(selectionDrag.startX, selectionDrag.startY, selectionDrag.lastX, selectionDrag.lastY);
+        updateSelectionFromDragRect(selRect);
+      }
+
+      selectionDrag.active = false;
+      clearSelectionBox();
+      try{ hitLayer.releasePointerCapture(e.pointerId); }catch(err){}
+      render();
+      return;
+    }
+
+    drag = {active:false,id:null,historyPushed:false};
+    try{ hitLayer.releasePointerCapture(e.pointerId); }catch(err){}
+  });
+
+  hitLayer.addEventListener('pointercancel', ()=>{
+    drag = {active:false,id:null,historyPushed:false};
+    selectionDrag.active = false;
+    clearSelectionBox();
+  });
+
+  document.addEventListener('keydown', e=>{
+    const tag = (document.activeElement && document.activeElement.tagName || '').toUpperCase();
+    if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    const ctrl = e.ctrlKey || e.metaKey;
+
+    if(ctrl && e.key.toLowerCase() === 'c'){
+      e.preventDefault();
+      if(selectedChordEvents().length) copySelectedChords();
+      else copySelectedEvents();
+      return;
+    }
+
+    if(ctrl && e.key.toLowerCase() === 'v'){
+      e.preventDefault();
+      if(copiedMode === 'chords' && copiedChordItems.length) pasteCopiedChords();
+      else pasteCopiedEvents();
+      return;
+    }
+
+    if(ctrl && e.key.toLowerCase() === 'z'){
+      e.preventDefault();
+      if(e.shiftKey) redo();
+      else undo();
+      return;
+    }
+
+    if(ctrl && e.key.toLowerCase() === 'y'){
+      e.preventDefault();
+      redo();
+      return;
+    }
+  });
+}
+
+function init(){
+  VF = window.Vex && window.Vex.Flow ? window.Vex.Flow : null;
+  if(!VF){
+    showError('VexFlow가 로드되지 않았다. 이 파일은 인터넷 연결이 필요하다.');
+    return;
+  }
+
+  normalize();
+  initEvents();
+  updateChordOptions();
+  syncUi();
+}
+
+window.addEventListener('load', init);
+
+})();
+</script>
+</body>
+</html>
