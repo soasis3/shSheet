@@ -66,6 +66,25 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 }
 #errorBox{display:none;background:#2b1111;color:#ffcaca;border:1px solid #6a2424;border-radius:10px;padding:12px;margin-bottom:12px}
 #status{margin-top:8px;font-size:12px;color:var(--muted)}
+@media (max-width: 820px){
+  #app{padding:10px}
+  .toolbar{gap:6px;margin-bottom:8px}
+  .row{gap:6px;padding:8px;border-radius:10px}
+  .row-title{min-width:100%;margin-bottom:2px}
+  label,.group-label{font-size:11px;margin-left:0}
+  input,select{font-size:16px;padding:8px 9px}
+  button{min-height:40px;padding:8px 10px}
+  .note-btn{min-width:42px}
+  .view-btn{min-width:60px}
+  .transport-btn{min-width:42px}
+  #titleInput{width:min(100%, 220px)}
+  #scoreWrap{height:64vh;max-height:none;min-height:420px}
+}
+@media (max-width: 520px){
+  #app{padding:8px}
+  .row{padding:7px}
+  #scoreWrap{height:68vh;min-height:460px}
+}
 </style>
 </head>
 <body>
@@ -288,14 +307,14 @@ const chordPreview = document.getElementById('chordPreview');
 
 const MEASURES_PER_SYSTEM = 4;
 const DEFAULT_SYSTEMS = 4;
-const PAGE_LEFT = 42;
-const STAFF_TOP = 105;
-const SYSTEM_GAP = 150;
-const MEASURE_MIN_W = 145;
-const FIRST_MEASURE_EXTRA_W = 60;
+const DESKTOP_PAGE_LEFT = 42;
+const DESKTOP_STAFF_TOP = 105;
+const DESKTOP_SYSTEM_GAP = 150;
+const DESKTOP_MEASURE_MIN_W = 145;
+const DESKTOP_FIRST_MEASURE_EXTRA_W = 60;
 const EIGHTH_GAP_W = 32;
-const FIXED_NOTE_GAP_W = 28;
-const RIGHT_PAD = 48;
+const DESKTOP_FIXED_NOTE_GAP_W = 28;
+const DESKTOP_RIGHT_PAD = 48;
 
 const STAFF_REF_DI = 2; // treble bottom line E4
 const MIDDLE_LINE_DI = STAFF_REF_DI + 4; // treble middle line B4. 일반 기보: 이 선 이상은 stem down, 아래는 stem up.
@@ -366,6 +385,7 @@ let redoStack = [];
 let copiedEvents = [];
 let copiedChordItems = [];
 let copiedMode = 'events';
+let resizeTimer = null;
 
 function mod(n,m){ return ((n%m)+m)%m; }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
@@ -412,17 +432,46 @@ function inputDuration(){
 }
 
 function totalBeats(){
-  let t = MEASURES_PER_SYSTEM * DEFAULT_SYSTEMS * measureBeats();
+  const {measuresPerSystem} = layoutMetrics();
+  let t = measuresPerSystem * DEFAULT_SYSTEMS * measureBeats();
   for(const e of state.events) t = Math.max(t, e.startBeat + e.duration);
   return t;
 }
 
 function measureCount(){
-  return Math.max(MEASURES_PER_SYSTEM * DEFAULT_SYSTEMS, Math.ceil(totalBeats() / measureBeats()));
+  const {measuresPerSystem} = layoutMetrics();
+  return Math.max(measuresPerSystem * DEFAULT_SYSTEMS, Math.ceil(totalBeats() / measureBeats()));
 }
 
 function systemCount(){
-  return Math.max(DEFAULT_SYSTEMS, Math.ceil(measureCount() / MEASURES_PER_SYSTEM));
+  const {measuresPerSystem} = layoutMetrics();
+  return Math.max(DEFAULT_SYSTEMS, Math.ceil(measureCount() / measuresPerSystem));
+}
+
+function viewportWidthSafe(){
+  const docWidth = document.documentElement ? document.documentElement.clientWidth : 0;
+  const wrapWidth = scoreWrap ? scoreWrap.clientWidth : 0;
+  return Math.max(window.innerWidth || 0, docWidth, wrapWidth, 390);
+}
+
+function layoutMetrics(){
+  const viewportWidth = viewportWidthSafe();
+  const compactMobile = viewportWidth <= 520;
+  const mobile = viewportWidth <= 820;
+
+  return {
+    mobile,
+    compactMobile,
+    measuresPerSystem: compactMobile ? 2 : (mobile ? 3 : MEASURES_PER_SYSTEM),
+    pageLeft: compactMobile ? 18 : (mobile ? 24 : DESKTOP_PAGE_LEFT),
+    staffTop: compactMobile ? 92 : (mobile ? 98 : DESKTOP_STAFF_TOP),
+    systemGap: compactMobile ? 136 : (mobile ? 142 : DESKTOP_SYSTEM_GAP),
+    measureMinW: compactMobile ? 178 : (mobile ? 166 : DESKTOP_MEASURE_MIN_W),
+    firstMeasureExtraW: compactMobile ? 44 : (mobile ? 52 : DESKTOP_FIRST_MEASURE_EXTRA_W),
+    fixedNoteGapW: compactMobile ? 34 : (mobile ? 31 : DESKTOP_FIXED_NOTE_GAP_W),
+    rightPad: compactMobile ? 18 : (mobile ? 28 : DESKTOP_RIGHT_PAD),
+    minScoreWidth: compactMobile ? Math.max(viewportWidth - 16, 320) : (mobile ? Math.max(viewportWidth - 20, 420) : 1040)
+  };
 }
 
 function eventById(id){
@@ -746,6 +795,8 @@ function eventsInMeasure(m){
 }
 
 function buildLayout(){
+  const metrics = layoutMetrics();
+  const {measuresPerSystem, measureMinW, firstMeasureExtraW, fixedNoteGapW, pageLeft, staffTop, systemGap, rightPad} = metrics;
   const mc = measureCount();
   const widths = [];
 
@@ -753,20 +804,20 @@ function buildLayout(){
   // 16분음표라고 더 붙거나, 긴 음표라고 더 벌어지지 않는다.
   for(let m=0; m<mc; m++){
     const events = eventsInMeasure(m);
-    const extra = (m % MEASURES_PER_SYSTEM === 0 ? FIRST_MEASURE_EXTRA_W : 0);
+    const extra = (m % measuresPerSystem === 0 ? firstMeasureExtraW : 0);
     const eventCount = Math.max(1, events.length);
 
     widths[m] = Math.max(
-      MEASURE_MIN_W + extra,
-      extra + 92 + eventCount * FIXED_NOTE_GAP_W
+      measureMinW + extra,
+      extra + 92 + eventCount * fixedNoteGapW
     );
   }
 
   // 각 행의 총 길이를 구한 뒤, 가장 긴 행에 맞춰 짧은 행은 마지막 마디만 늘린다.
   const rowWidths = [];
   for(let s=0; s<systemCount(); s++){
-    const first = s * MEASURES_PER_SYSTEM;
-    const last = Math.min(first + MEASURES_PER_SYSTEM, mc) - 1;
+    const first = s * measuresPerSystem;
+    const last = Math.min(first + measuresPerSystem, mc) - 1;
     let rowWidth = 0;
 
     for(let m=first; m<=last; m++){
@@ -779,8 +830,8 @@ function buildLayout(){
   const maxRowWidth = Math.max(...rowWidths, 0);
 
   for(let s=0; s<systemCount(); s++){
-    const first = s * MEASURES_PER_SYSTEM;
-    const last = Math.min(first + MEASURES_PER_SYSTEM, mc) - 1;
+    const first = s * measuresPerSystem;
+    const last = Math.min(first + measuresPerSystem, mc) - 1;
 
     if(last >= first){
       const diff = maxRowWidth - rowWidths[s];
@@ -792,9 +843,9 @@ function buildLayout(){
   let scoreWidth = 0;
 
   for(let s=0; s<systemCount(); s++){
-    const first = s * MEASURES_PER_SYSTEM;
-    const last = Math.min(first + MEASURES_PER_SYSTEM, mc) - 1;
-    let x = PAGE_LEFT;
+    const first = s * measuresPerSystem;
+    const last = Math.min(first + measuresPerSystem, mc) - 1;
+    let x = pageLeft;
     const starts = {};
 
     for(let m=first; m<=last; m++){
@@ -802,8 +853,8 @@ function buildLayout(){
       x += widths[m];
     }
 
-    systems[s] = {first,last,x:PAGE_LEFT,y:STAFF_TOP + s*SYSTEM_GAP,width:x-PAGE_LEFT,starts};
-    scoreWidth = Math.max(scoreWidth, x + RIGHT_PAD);
+    systems[s] = {first,last,x:pageLeft,y:staffTop + s*systemGap,width:x-pageLeft,starts};
+    scoreWidth = Math.max(scoreWidth, x + rightPad);
   }
 
   return {measureCount:mc,widths,systems,scoreWidth};
@@ -1619,7 +1670,7 @@ function translateNoteSvg(note, dx){
 }
 
 function fixedEventX(stave, ordinal){
-  return staveNoteStartX(stave) + 14 + ordinal * FIXED_NOTE_GAP_W;
+  return staveNoteStartX(stave) + 14 + ordinal * layoutMetrics().fixedNoteGapW;
 }
 
 function render(){
@@ -1633,9 +1684,10 @@ function render(){
   vfCanvas.innerHTML = '';
   hitLayer.innerHTML = '';
 
+  const metrics = layoutMetrics();
   const layout = buildLayout();
-  const width = Math.max(1040, layout.scoreWidth);
-  const height = STAFF_TOP + systemCount()*SYSTEM_GAP + 70;
+  const width = Math.max(metrics.minScoreWidth, layout.scoreWidth);
+  const height = metrics.staffTop + systemCount()*metrics.systemGap + 70;
 
   scoreSurface.style.width = width+'px';
   scoreSurface.style.height = height+'px';
@@ -1660,7 +1712,7 @@ function render(){
   metaDiv.textContent = `${getKeyDisplay()}   ·   ${state.timeSig}   ·   ${state.tempo || 90} BPM   ·   ${harmonyStyleConfig().name}`;
   hitLayer.appendChild(metaDiv);
 
-  // Draw 4 measures per row, 4 rows by default.
+  // Render fewer measures per row on small screens so the score stays readable on phones.
   for(let s=0; s<systemCount(); s++){
     const sys = layout.systems[s];
     if(!sys) continue;
@@ -1903,6 +1955,7 @@ function accidentalIdentity(e){
 }
 
 function drawTieOverlays(ctx){
+  const {measuresPerSystem} = layoutMetrics();
   const sorted = [...state.events].sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id);
 
   for(let i=0; i<sorted.length-1; i++){
@@ -1913,8 +1966,8 @@ function drawTieOverlays(ctx){
 
     const ma = measureOfBeat(a.startBeat);
     const mb = measureOfBeat(b.startBeat);
-    const sa = Math.floor(ma / MEASURES_PER_SYSTEM);
-    const sb = Math.floor(mb / MEASURES_PER_SYSTEM);
+    const sa = Math.floor(ma / measuresPerSystem);
+    const sb = Math.floor(mb / measuresPerSystem);
 
     const staveA = renderInfo.staves.get(ma);
     const staveB = renderInfo.staves.get(mb);
@@ -2329,6 +2382,31 @@ function masterDestination(ctx){
     }
   }
   return ctx._tcMasterGain;
+}
+
+async function primeAudioContext(ctx){
+  masterDestination(ctx);
+
+  try{
+    if(typeof ctx.resume === 'function' && ctx.state === 'suspended'){
+      await ctx.resume();
+    }
+  }catch(e){
+    console.warn('AudioContext resume failed before prime.', e);
+  }
+
+  try{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.00001, ctx.currentTime);
+    osc.frequency.setValueAtTime(440, ctx.currentTime);
+    osc.connect(gain);
+    gain.connect(masterDestination(ctx));
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.02);
+  }catch(e){
+    console.warn('Audio prime ping failed.', e);
+  }
 }
 
 function stopPlayback(){
@@ -2854,13 +2932,14 @@ async function play(){
   generateHarmony();
 
   const AudioContext = window.AudioContext || window.webkitAudioContext;
-  const ctx = new AudioContext();
-  currentAudioContext = ctx;
+  let ctx = null;
   try{
-    if(ctx.state === 'suspended') await ctx.resume();
+    ctx = new AudioContext({latencyHint:'interactive'});
   }catch(err){
-    console.warn('AudioContext resume failed.', err);
+    ctx = new AudioContext();
   }
+  currentAudioContext = ctx;
+  await primeAudioContext(ctx);
 
   const beatSec = 60 / (state.tempo || 90);
   const start = ctx.currentTime + .08;
@@ -3215,6 +3294,13 @@ function initEvents(){
   });
 }
 
+function scheduleResponsiveRender(){
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(()=>{
+    if(VF) render();
+  }, 80);
+}
+
 function init(){
   VF = window.Vex && window.Vex.Flow ? window.Vex.Flow : null;
   if(!VF){
@@ -3229,6 +3315,8 @@ function init(){
 }
 
 window.addEventListener('load', init);
+window.addEventListener('resize', scheduleResponsiveRender);
+window.addEventListener('orientationchange', scheduleResponsiveRender);
 
 })();
 </script>
