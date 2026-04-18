@@ -27,7 +27,7 @@ button{cursor:pointer;border:1px solid #424a58;background:var(--panel2);color:va
 button:hover{border-color:var(--accent)}
 button.active{background:var(--accent);border-color:var(--accent);color:#07101d;font-weight:bold;box-shadow:0 0 0 2px var(--accentWeak)}
 .note-btn,.transport-btn,.view-btn,.short-btn{min-width:56px}
-.chord-preview{padding:7px 11px;border-radius:10px;background:var(--panel3);border:1px solid #475061;color:#78d66f;font-weight:bold;min-width:56px;text-align:center}
+.chord-preview{padding:7px 11px;border-radius:10px;background:var(--panel3);border:1px solid #475061;color:#78d66f;font-weight:bold;min-width:112px;text-align:center}
 .rhythm-hint{color:var(--muted);font-size:12px;padding:0 6px}
 #editorLayout{display:grid;grid-template-columns:148px minmax(0,1fr);gap:8px;align-items:start}
 #scoreWrap{position:relative;background:var(--score);border:1px solid #3d4350;border-radius:12px;overflow:auto;max-height:calc(100vh - 315px);touch-action:none}
@@ -72,7 +72,6 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 .play-main{display:flex;gap:8px;flex-wrap:wrap;align-items:center;width:100%}
 .play-settings{display:none;gap:8px;flex-wrap:wrap;align-items:center;width:100%;padding-top:4px;border-top:1px solid #2f3744;margin-top:2px}
 .play-settings.open{display:flex}
-.push-right{margin-left:auto}
 .notes-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .notes-col{display:grid;gap:6px}
@@ -108,7 +107,9 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 
   <div class="toolbar">
     <div class="row" id="songRow">
-      <div class="row-title">Song</div>
+      <button id="newBtn">New</button>
+      <button id="saveBrowserBtn">Save</button>
+      <button id="loadBrowserBtn">Open</button>
       <label>Title</label><input id="titleInput" type="text" value="Untitled Song" />
       <label>Key</label>
       <select id="keyRootSelect">
@@ -119,8 +120,8 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <select id="keyModeSelect"><option value="major">Major</option><option value="minor">Minor</option></select>
       <label>Time</label>
       <select id="timeSelect"><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option><option>9/8</option><option>12/8</option></select>
-      <label>Tempo</label><input id="tempoInput" type="number" min="30" max="240" value="90" style="width:78px" /><span style="color:var(--muted)">BPM</span>
-      <span class="group-label">Harmony Style</span>
+      <label>Tempo</label><input id="tempoInput" type="number" min="30" max="240" value="90" style="width:78px" />
+      <span class="group-label">Style</span>
       <select id="styleSelect">
         <option value="pop">Pop Basic</option>
         <option value="kpop">K-Pop / Ballad</option>
@@ -130,28 +131,46 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
         <option value="tight">Tight 3-Part</option>
         <option value="open">Open 3-Part</option>
       </select>
-      <button id="reharmonizeBtn">화음계산</button>
+      <button id="reharmonizeBtn">적용</button>
+      <button id="undoBtn" title="Undo">Undo</button>
+      <button id="redoBtn" title="Redo">Redo</button>
+      <button id="copyBtn">Copy</button>
+      <button id="pasteBtn">Paste</button>
+      <input id="uploadJsonInput" type="file" accept=".json" style="display:none" />
     </div>
 
-    <div class="row" id="fileRow">
-      <div class="row-title">File</div>
-      <div class="play-main">
-        <button id="newBtn">New</button>
-        <button id="saveBrowserBtn">Save</button>
-        <button id="loadBrowserBtn">Open</button>
-        <button id="undoBtn" title="Undo">Undo</button>
-        <button id="redoBtn" title="Redo">Redo</button>
-        <button class="view-btn voice-view active" data-voice="all">ALL</button>
-        <button class="view-btn voice-view active" data-voice="melody">Mel</button>
-        <button class="view-btn voice-view active" data-voice="tenor">Ten</button>
-        <button class="view-btn voice-view active" data-voice="alto">Alt</button>
-        <button id="rewindBtn" class="transport-btn compact-btn">RW</button>
-        <button id="playBtn" class="transport-btn compact-btn">PLAY</button>
-        <button id="stopBtn" class="transport-btn compact-btn">STOP</button>
-        <button id="downloadAudioBtn">Wav</button>
-        <button id="playSettingsBtn" class="push-right">Setting</button>
-        <input id="uploadJsonInput" type="file" accept=".json" style="display:none" />
-      </div>
+    <div class="row" id="chordRow">
+      <div class="row-title">Chord</div>
+      <select id="chordRootSelect">
+        <option>C</option><option>C#</option><option>Db</option><option>D</option><option>D#</option><option>Eb</option>
+        <option>E</option><option>F</option><option>F#</option><option>Gb</option><option>G</option><option>G#</option>
+        <option>Ab</option><option>A</option><option>A#</option><option>Bb</option><option>B</option><option>Cb</option>
+      </select>
+      <select id="chordTypeSelect">
+        <option value="maj">Major</option><option value="m">Minor</option><option value="dom7">Dominant 7</option>
+        <option value="maj7">Major 7</option><option value="m7">Minor 7</option><option value="mMaj7">Minor Maj7</option>
+        <option value="dim">Diminished</option><option value="dim7">Diminished 7</option><option value="m7b5">Half-dim 7</option>
+        <option value="aug">Augmented</option><option value="sus2">sus2</option><option value="sus4">sus4</option><option value="7sus4">7sus4</option>
+      </select>
+      <select id="chordFlavorSelect"></select>
+      <label>/</label>
+      <select id="slashBassSelect">
+        <option value="">None</option><option>C</option><option>C#</option><option>Db</option><option>D</option><option>D#</option><option>Eb</option>
+        <option>E</option><option>F</option><option>F#</option><option>Gb</option><option>G</option><option>G#</option><option>Ab</option>
+        <option>A</option><option>A#</option><option>Bb</option><option>B</option>
+      </select>
+      <div id="chordPreview" class="chord-preview">C</div>
+      <button id="applyChordBtn">Add</button>
+      <button id="removeChordBtn">Del</button>
+      <button class="view-btn voice-view active" data-voice="all">ALL</button>
+      <button class="view-btn voice-view active" data-voice="melody">Mel</button>
+      <button class="view-btn voice-view active" data-voice="tenor">Ten</button>
+      <button class="view-btn voice-view active" data-voice="alto">Alt</button>
+      <button id="rewindBtn" class="transport-btn compact-btn">RW</button>
+      <button id="playBtn" class="transport-btn compact-btn">PLAY</button>
+      <button id="stopBtn" class="transport-btn compact-btn">STOP</button>
+      <button id="downloadAudioBtn">Wav</button>
+      <button id="playSettingsBtn">Setting</button>
       <div id="playSettingsPanel" class="play-settings">
         <label>Inst</label>
         <select id="melodyInstrumentSelect">
@@ -178,30 +197,6 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
         <input id="masterVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.82" style="width:120px;" />
         <span id="masterVolumeValue" style="color:var(--muted);font-size:12px;">82%</span>
       </div>
-    </div>
-
-    <div class="row" id="chordRow">
-      <div class="row-title">Chord</div>
-      <select id="chordRootSelect">
-        <option>C</option><option>C#</option><option>Db</option><option>D</option><option>D#</option><option>Eb</option>
-        <option>E</option><option>F</option><option>F#</option><option>Gb</option><option>G</option><option>G#</option>
-        <option>Ab</option><option>A</option><option>A#</option><option>Bb</option><option>B</option><option>Cb</option>
-      </select>
-      <select id="chordTypeSelect">
-        <option value="maj">Major</option><option value="m">Minor</option><option value="dom7">Dominant 7</option>
-        <option value="maj7">Major 7</option><option value="m7">Minor 7</option><option value="mMaj7">Minor Maj7</option>
-        <option value="dim">Diminished</option><option value="dim7">Diminished 7</option><option value="m7b5">Half-dim 7</option>
-        <option value="aug">Augmented</option><option value="sus2">sus2</option><option value="sus4">sus4</option><option value="7sus4">7sus4</option>
-      </select>
-      <select id="chordFlavorSelect"></select>
-      <select id="slashBassSelect">
-        <option value="">None</option><option>C</option><option>C#</option><option>Db</option><option>D</option><option>D#</option><option>Eb</option>
-        <option>E</option><option>F</option><option>F#</option><option>Gb</option><option>G</option><option>G#</option><option>Ab</option>
-        <option>A</option><option>A#</option><option>Bb</option><option>B</option>
-      </select>
-      <div id="chordPreview" class="chord-preview">C</div>
-      <button id="applyChordBtn">Add</button>
-      <button id="removeChordBtn">Del</button>
     </div>
   </div>
 
@@ -3378,6 +3373,14 @@ function initEvents(){
   document.getElementById('deleteSelectedBtn').addEventListener('click', deleteSelected);
   document.getElementById('deleteBtn').addEventListener('click', deleteLast);
   document.getElementById('newBtn').addEventListener('click', clearAll);
+  document.getElementById('copyBtn').addEventListener('click', ()=>{
+    if(selectedChordEvents().length) copySelectedChords();
+    else copySelectedEvents();
+  });
+  document.getElementById('pasteBtn').addEventListener('click', ()=>{
+    if(copiedMode === 'chords' && copiedChordItems.length) pasteCopiedChords();
+    else pasteCopiedEvents();
+  });
 
   document.querySelectorAll('.voice-view').forEach(b=>b.addEventListener('click',()=>{
     const v = b.dataset.voice;
