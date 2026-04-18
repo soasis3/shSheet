@@ -1287,15 +1287,18 @@ function harmonyStyleConfig(){
     },
     ccm: {
       name:'CCM Worship',
-      upperRange:14,
-      lowerRange:14,
-      extraTensions:[2,9],
-      tenorTargets:[3,4,5],
-      altoTargets:[3,4,5],
-      tenorWidePenalty:8,
-      altoWidePenalty:8,
-      movementWeight:3,
-      duplicatePenalty:55,
+      upperRange:12,
+      lowerRange:12,
+      // 한국 교회 현장의 일반적인 예배 코러스는
+      // add2 / sus 계열의 맑은 확장음은 자주 쓰지만,
+      // 자동 13(6)이나 과한 텐션 중복은 덜 선호하는 편이라 기본값을 보수적으로 둔다.
+      extraTensions:[2],
+      tenorTargets:[3,4],
+      altoTargets:[3,4],
+      tenorWidePenalty:12,
+      altoWidePenalty:12,
+      movementWeight:5,
+      duplicatePenalty:90,
       open:false
     },
     gospel: {
