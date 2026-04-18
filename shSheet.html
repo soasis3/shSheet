@@ -16,7 +16,7 @@
 body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text);user-select:none;-webkit-user-select:none;-webkit-text-size-adjust:100%}
 input,select{user-select:text;-webkit-user-select:text}
 #app{padding:14px}
-.toolbar{display:grid;grid-template-columns:240px minmax(0,1fr);gap:8px;margin-bottom:12px;align-items:start}
+.toolbar{display:grid;gap:8px;margin-bottom:12px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
 .row-title{min-width:72px;color:var(--muted);font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase}
 label,.group-label{color:var(--muted);font-size:12px;margin-left:4px}
@@ -34,6 +34,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 .short-btn{min-width:48px;padding:7px 9px}
 .chord-preview{padding:7px 12px;border-radius:10px;background:var(--panel3);border:1px solid #475061;color:#78d66f;font-weight:bold;min-width:150px;text-align:center}
 .rhythm-hint{color:var(--muted);font-size:12px;padding:0 6px}
+#editorLayout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:8px;align-items:start}
 #scoreWrap{position:relative;background:var(--score);border:1px solid #3d4350;border-radius:12px;overflow:auto;max-height:calc(100vh - 315px);touch-action:none}
 #scoreViewport{position:relative;width:100%;height:100%;min-height:760px;background:var(--score);overflow:hidden}
 #scoreSurface{position:relative;background:var(--score);min-height:760px;transform-origin:0 0;will-change:transform}
@@ -70,20 +71,20 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 }
 #errorBox{display:none;background:#2b1111;color:#ffcaca;border:1px solid #6a2424;border-radius:10px;padding:12px;margin-bottom:12px}
 #status{margin-top:8px;font-size:12px;color:var(--muted)}
-#notesPanel{grid-column:1;grid-row:1 / span 4;display:block;padding:12px}
+#notesPanel{display:block;padding:12px}
 #notesPanel .row-title{min-width:100%;margin-bottom:4px}
 .notes-stack{display:grid;gap:10px}
 .notes-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .notes-col{display:grid;gap:6px}
 .notes-group{display:grid;gap:6px}
-.notes-delete{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.notes-inline4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.notes-delete{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.notes-inline2{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
 .notes-inline3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-#songRow,#chordRow,#playRow,#fileRow{grid-column:2}
 @media (max-width: 820px){
   #app{padding:10px}
-  .toolbar{grid-template-columns:1fr;gap:6px;margin-bottom:8px}
+  .toolbar{gap:6px;margin-bottom:8px}
+  #editorLayout{grid-template-columns:1fr}
   .row{gap:6px;padding:8px;border-radius:10px}
   .row-title{min-width:100%;margin-bottom:2px}
   label,.group-label{font-size:11px;margin-left:0}
@@ -96,7 +97,6 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
   #titleInput{width:min(100%, 220px)}
   #scoreWrap{height:64vh;max-height:none;min-height:420px}
   #scoreViewport{min-height:420px}
-  #notesPanel,#songRow,#chordRow,#playRow,#fileRow{grid-column:auto;grid-row:auto}
 }
 @media (max-width: 520px){
   #app{padding:8px}
@@ -137,72 +137,6 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <button id="reharmonizeBtn">화음계산</button>
     </div>
 
-    <div class="row" id="notesPanel">
-      <div class="row-title">Notes</div>
-      <div class="notes-stack">
-        <div class="notes-row2">
-          <button id="pencilModeBtn" class="note-btn compact-btn active" title="연필 모드: 오선지 클릭으로 음표 추가 / 기존 음표 드래그 수정">Draw</button>
-          <button id="selectModeBtn" class="note-btn compact-btn" title="선택 모드: 음표 선택만, 추가/수정 없음">Sel</button>
-        </div>
-        <div class="notes-row2">
-          <button id="undoBtn" class="note-btn compact-btn" title="Undo">Undo</button>
-          <button id="redoBtn" class="note-btn compact-btn" title="Redo">Redo</button>
-        </div>
-        <div class="notes-grid">
-          <div class="notes-col">
-            <span class="group-label">Rest</span>
-            <button class="note-btn duration-btn rest-length" data-duration="4">R1</button>
-            <button class="note-btn duration-btn rest-length" data-duration="2">R2</button>
-            <button class="note-btn duration-btn rest-length" data-duration="1">R4</button>
-            <button class="note-btn duration-btn rest-length" data-duration="0.5">R8</button>
-            <button class="note-btn duration-btn rest-length" data-duration="0.25">R16</button>
-            <button class="note-btn duration-btn rest-length" data-duration="0.125">R32</button>
-          </div>
-          <div class="notes-col">
-            <span class="group-label">Note</span>
-            <button class="note-btn duration-btn note-length" data-duration="4">1n</button>
-            <button class="note-btn duration-btn note-length" data-duration="2">2n</button>
-            <button class="note-btn duration-btn note-length active" data-duration="1">4n</button>
-            <button class="note-btn duration-btn note-length" data-duration="0.5">8n</button>
-            <button class="note-btn duration-btn note-length" data-duration="0.25">16n</button>
-            <button class="note-btn duration-btn note-length" data-duration="0.125">32n</button>
-          </div>
-        </div>
-        <div class="notes-group">
-          <span class="group-label">Dot / Tuplet</span>
-          <div class="notes-inline4">
-            <button class="note-btn compact-btn dot-mode active" data-dot="0">Base</button>
-            <button class="note-btn compact-btn dot-mode" data-dot="1">Dot</button>
-            <button class="note-btn compact-btn dot-mode" data-dot="2">Dbl</button>
-            <button id="tripletBtn" class="note-btn compact-btn" title="셋잇단음표">3</button>
-          </div>
-        </div>
-        <div class="notes-group">
-          <span class="group-label">Accidental</span>
-          <div class="notes-inline4">
-            <button class="note-btn accidental-mode active" data-accidental="auto">Auto</button>
-            <button class="note-btn compact-btn accidental-mode" data-accidental="natural">Nat</button>
-            <button class="note-btn compact-btn accidental-mode" data-accidental="sharp">#</button>
-            <button class="note-btn compact-btn accidental-mode" data-accidental="flat">b</button>
-          </div>
-        </div>
-        <div class="notes-group">
-          <span class="group-label">Mark</span>
-          <div class="notes-row2">
-            <button id="tieToggleBtn" class="note-btn compact-btn" title="선택 음표와 다음 음표를 연결선으로 연결합니다. 같은 음이면 붙임줄, 다른 음이면 이음줄로 처리합니다.">Tie</button>
-            <button id="fermataToggleBtn" class="note-btn compact-btn" title="늘임표 / Fermata">Hold</button>
-          </div>
-        </div>
-        <div class="notes-group">
-          <span class="group-label">Delete</span>
-          <div class="notes-delete">
-            <button id="deleteSelectedBtn" class="short-btn">Sel</button>
-            <button id="deleteBtn" class="short-btn">Last</button>
-            <button id="clearBtn" class="short-btn">All</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="row" id="chordRow">
       <div class="row-title">Chord</div>
@@ -269,17 +203,83 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 
     <div class="row" id="fileRow">
       <div class="row-title">File</div>
+      <button id="newBtn">New</button>
       <button id="saveBrowserBtn">Save</button>
       <button id="loadBrowserBtn">Open</button>
+      <button id="undoBtn" title="Undo">Undo</button>
+      <button id="redoBtn" title="Redo">Redo</button>
       <input id="uploadJsonInput" type="file" accept=".json" style="display:none" />
     </div>
   </div>
 
-  <div id="scoreWrap">
-    <div id="scoreViewport">
-      <div id="scoreSurface">
-        <div id="vfCanvas"></div>
-        <div id="hitLayer"></div>
+  <div id="editorLayout">
+    <div class="row" id="notesPanel">
+      <div class="row-title">Notes</div>
+      <div class="notes-stack">
+        <div class="notes-row2">
+          <button id="pencilModeBtn" class="note-btn compact-btn active" title="Draw mode">Draw</button>
+          <button id="selectModeBtn" class="note-btn compact-btn" title="Select mode">Sel</button>
+        </div>
+        <div class="notes-grid">
+          <div class="notes-col">
+            <span class="group-label">Rest</span>
+            <button class="note-btn duration-btn rest-length" data-duration="4">R1</button>
+            <button class="note-btn duration-btn rest-length" data-duration="2">R2</button>
+            <button class="note-btn duration-btn rest-length" data-duration="1">R4</button>
+            <button class="note-btn duration-btn rest-length" data-duration="0.5">R8</button>
+            <button class="note-btn duration-btn rest-length" data-duration="0.25">R16</button>
+            <button class="note-btn duration-btn rest-length" data-duration="0.125">R32</button>
+          </div>
+          <div class="notes-col">
+            <span class="group-label">Note</span>
+            <button class="note-btn duration-btn note-length" data-duration="4">1n</button>
+            <button class="note-btn duration-btn note-length" data-duration="2">2n</button>
+            <button class="note-btn duration-btn note-length active" data-duration="1">4n</button>
+            <button class="note-btn duration-btn note-length" data-duration="0.5">8n</button>
+            <button class="note-btn duration-btn note-length" data-duration="0.25">16n</button>
+            <button class="note-btn duration-btn note-length" data-duration="0.125">32n</button>
+          </div>
+        </div>
+        <div class="notes-group">
+          <span class="group-label">Dot / Tuplet</span>
+          <div class="notes-inline2">
+            <button class="note-btn compact-btn dot-mode active" data-dot="0">Base</button>
+            <button class="note-btn compact-btn dot-mode" data-dot="1">Dot</button>
+            <button class="note-btn compact-btn dot-mode" data-dot="2">Dbl</button>
+            <button id="tripletBtn" class="note-btn compact-btn" title="Tuplet">3</button>
+          </div>
+        </div>
+        <div class="notes-group">
+          <span class="group-label">Accidental</span>
+          <div class="notes-inline2">
+            <button class="note-btn accidental-mode active" data-accidental="auto">Auto</button>
+            <button class="note-btn compact-btn accidental-mode" data-accidental="natural">Nat</button>
+            <button class="note-btn compact-btn accidental-mode" data-accidental="sharp">#</button>
+            <button class="note-btn compact-btn accidental-mode" data-accidental="flat">b</button>
+          </div>
+        </div>
+        <div class="notes-group">
+          <span class="group-label">Mark</span>
+          <div class="notes-row2">
+            <button id="tieToggleBtn" class="note-btn compact-btn" title="Tie to next note">Tie</button>
+            <button id="fermataToggleBtn" class="note-btn compact-btn" title="Fermata">Hold</button>
+          </div>
+        </div>
+        <div class="notes-group">
+          <span class="group-label">Delete</span>
+          <div class="notes-delete">
+            <button id="deleteSelectedBtn" class="short-btn">Select</button>
+            <button id="deleteBtn" class="short-btn">Last</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="scoreWrap">
+      <div id="scoreViewport">
+        <div id="scoreSurface">
+          <div id="vfCanvas"></div>
+          <div id="hitLayer"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -3371,7 +3371,7 @@ function initEvents(){
   document.getElementById('reharmonizeBtn').addEventListener('click', reharmonizeSelectionOrAll);
   document.getElementById('deleteSelectedBtn').addEventListener('click', deleteSelected);
   document.getElementById('deleteBtn').addEventListener('click', deleteLast);
-  document.getElementById('clearBtn').addEventListener('click', clearAll);
+  document.getElementById('newBtn').addEventListener('click', clearAll);
 
   document.querySelectorAll('.voice-view').forEach(b=>b.addEventListener('click',()=>{
     const v = b.dataset.voice;
