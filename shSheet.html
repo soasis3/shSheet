@@ -165,6 +165,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <span class="group-label">Mark</span>
       <button id="tieToggleBtn" class="note-btn compact-btn" title="선택 음표와 다음 음표를 연결선으로 연결합니다. 같은 음이면 붙임줄, 다른 음이면 이음줄로 처리합니다.">Tie</button>
       <button id="fermataToggleBtn" class="note-btn compact-btn" title="늘임표 / Fermata">Hold</button>
+      <button id="reharmonizeBtn">화음계산</button>
 
       <button id="deleteSelectedBtn">선택 삭제</button>
       <button id="deleteBtn">마지막 삭제</button>
@@ -1389,44 +1390,130 @@ function targetIntervalPenalty(interval, targets){
   return best;
 }
 
-function generateHarmony(){
+function melodyMidiForEvent(e){
+  return diToMidi(e.di, e.accidental || 'auto');
+}
+
+function effectiveChordAtEvent(event){
+  return effectiveChord(event);
+}
+
+function harmonyContextForEvent(sorted, index, cfg){
+  const e = sorted[index];
+  const chord = effectiveChordAtEvent(e);
+  const basePcs = parseChordPcs(chord);
+  let pcs = addStyleTensions(basePcs, chord, cfg);
+  let chordShiftOnTie = false;
+
+  if(index > 0){
+    const prev = sorted[index - 1];
+    if(prev && prev.tieToNext && !prev.rest && !e.rest){
+      const sameMelody = melodyMidiForEvent(prev) === melodyMidiForEvent(e);
+      const prevChord = effectiveChordAtEvent(prev);
+      if(sameMelody && prevChord !== chord){
+        // 붙임줄로 멜로디가 유지된 채 코드가 바뀌면
+        // 뒤 음표에서는 새 코드의 핵심음이 더 빨리 들리도록
+        // 스타일 텐션보다 기본 화성음을 우선시한다.
+        pcs = [...basePcs];
+        chordShiftOnTie = true;
+      }
+    }
+  }
+
+  return {chord, basePcs, pcs, chordShiftOnTie};
+}
+
+function generateHarmony(targetIds=null){
+  const targetSet = targetIds && targetIds.length ? new Set(targetIds) : null;
   let prevT = null, prevA = null;
   const cfg = harmonyStyleConfig();
+  const sorted = [...state.events].sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id);
 
-  for(const e of [...state.events].sort((a,b)=>a.startBeat-b.startBeat || a.id-b.id)){
-    if(e.rest){ e.tenor=null; e.alto=null; continue; }
+  for(let index=0; index<sorted.length; index++){
+    const e = sorted[index];
+    const shouldCalc = !targetSet || targetSet.has(e.id);
 
-    const melody = diToMidi(e.di, e.accidental || 'auto');
-    const chord = effectiveChord(e);
-    const basePcs = parseChordPcs(chord);
-    const pcs = addStyleTensions(basePcs, chord, cfg);
+    if(e.rest){
+      if(shouldCalc){
+        e.tenor = null;
+        e.alto = null;
+      }
+      prevT = null;
+      prevA = null;
+      continue;
+    }
 
-    const tCands = candidates(pcs, melody+1, melody+cfg.upperRange);
-    e.tenor = chooseBest(tCands, m=>{
-      const int = m - melody;
-      let s = targetIntervalPenalty(int, cfg.tenorTargets) * 9;
-      if(int < 3) s += 90;
-      if(!cfg.open && int > 8) s += (int-8) * cfg.tenorWidePenalty;
-      if(prevT !== null) s += Math.abs(m-prevT) * cfg.movementWeight;
-      if(mod(m,12) === mod(melody,12)) s += cfg.duplicatePenalty;
-      return s;
-    });
+    const melody = melodyMidiForEvent(e);
 
-    const aCands = candidates(pcs, melody-cfg.lowerRange, melody-1);
-    e.alto = chooseBest(aCands, m=>{
-      const int = melody - m;
-      let s = targetIntervalPenalty(int, cfg.altoTargets) * 8;
-      if(int < 3) s += 90;
-      if(!cfg.open && int > 10) s += (int-10) * cfg.altoWidePenalty;
-      if(prevA !== null) s += Math.abs(m-prevA) * cfg.movementWeight;
-      if(mod(m,12) === mod(melody,12)) s += cfg.duplicatePenalty;
-      if(e.tenor !== null && mod(m,12) === mod(e.tenor,12)) s += cfg.duplicatePenalty * .35;
-      return s;
-    });
+    if(shouldCalc){
+      const {pcs, chordShiftOnTie} = harmonyContextForEvent(sorted, index, cfg);
+      const tCands = candidates(pcs, melody+1, melody+cfg.upperRange);
+      const prevTPc = prevT === null ? null : mod(prevT, 12);
+      const prevAPc = prevA === null ? null : mod(prevA, 12);
 
-    prevT = e.tenor;
-    prevA = e.alto;
+      e.tenor = chooseBest(tCands, m=>{
+        const int = m - melody;
+        let s = targetIntervalPenalty(int, cfg.tenorTargets) * 9;
+        if(int < 3) s += 90;
+        if(!cfg.open && int > 8) s += (int-8) * cfg.tenorWidePenalty;
+        if(prevT !== null) s += Math.abs(m-prevT) * cfg.movementWeight;
+        if(mod(m,12) === mod(melody,12)) s += cfg.duplicatePenalty;
+        if(chordShiftOnTie && prevTPc !== null && mod(m,12) === prevTPc) s += 38;
+        return s;
+      });
+
+      const aCands = candidates(pcs, melody-cfg.lowerRange, melody-1);
+      e.alto = chooseBest(aCands, m=>{
+        const int = melody - m;
+        let s = targetIntervalPenalty(int, cfg.altoTargets) * 8;
+        if(int < 3) s += 90;
+        if(!cfg.open && int > 10) s += (int-10) * cfg.altoWidePenalty;
+        if(prevA !== null) s += Math.abs(m-prevA) * cfg.movementWeight;
+        if(mod(m,12) === mod(melody,12)) s += cfg.duplicatePenalty;
+        if(e.tenor !== null && mod(m,12) === mod(e.tenor,12)) s += cfg.duplicatePenalty * .35;
+        if(chordShiftOnTie && prevAPc !== null && mod(m,12) === prevAPc) s += 34;
+        return s;
+      });
+    }
+
+    prevT = e.tenor ?? null;
+    prevA = e.alto ?? null;
   }
+}
+
+function currentEditVoice(){
+  const melodyOn = !!state.voiceMask.melody;
+  const tenorOn = !!state.voiceMask.tenor;
+  const altoOn = !!state.voiceMask.alto;
+
+  if(tenorOn && !melodyOn && !altoOn) return 'tenor';
+  if(altoOn && !melodyOn && !tenorOn) return 'alto';
+  return 'melody';
+}
+
+function setEventPitchForVoice(e, voice, di){
+  if(!e || e.rest) return;
+
+  if(voice === 'tenor'){
+    e.tenor = diToMidi(di, 'auto');
+    return;
+  }
+
+  if(voice === 'alto'){
+    e.alto = diToMidi(di, 'auto');
+    return;
+  }
+
+  e.di = di;
+}
+
+function reharmonizeSelectionOrAll(){
+  if(!state.events.length) return;
+  pushHistory();
+  const targets = selectedEvents();
+  if(targets.length) generateHarmony(targets.map(e=>e.id));
+  else generateHarmony();
+  render();
 }
 
 function makeVoiceDisplayItem(voice, midi, di, accidental){
@@ -1852,8 +1939,6 @@ function render(){
     showError('VexFlow가 로드되지 않았다. 인터넷 연결 후 다시 열어줘.');
     return;
   }
-
-  generateHarmony();
 
   vfCanvas.innerHTML = '';
   hitLayer.innerHTML = '';
@@ -2372,13 +2457,14 @@ function updateStatus(){
   if(state.voiceMask.melody) voices.push('Melody');
   if(state.voiceMask.tenor) voices.push('Tenor');
   if(state.voiceMask.alto) voices.push('Alto');
+  const editVoice = currentEditVoice();
 
   ensureSelectionState();
   ensureChordSelectionState();
   const noteSelectionText = state.selectedIds.length > 1 ? `${state.selectedIds.length}개 음표 선택` : (e ? '음표 ID '+e.id : '음표 선택 없음');
   const chordSelectionText = state.selectedChordIds.length ? `코드 ${state.selectedChordIds.length}개 선택` : '코드 선택 없음';
   const copiedText = copiedMode === 'chords' && copiedChordItems.length ? ` · 복사: 코드 ${copiedChordItems.length}개` : (copiedMode === 'events' && copiedEvents.length ? ` · 복사: 음표 ${copiedEvents.length}개` : '');
-  statusEl.textContent = `Mode: ${state.editMode === 'select' ? 'Select' : 'Pencil'} · ${noteSelectionText} · ${chordSelectionText}${copiedText} · 표시/재생: ${voices.join(' + ') || 'None'} · Inst M/T/A: ${(state.instrumentMelody||'piano')} / ${(state.instrumentTenor||'electricPiano')} / ${(state.instrumentAlto||'organ')} · Chord Pad: ${state.chordPadEnabled ? 'ON' : 'OFF'} ${Math.round((state.chordPadVolume ?? 0.38)*100)}% · Master: ${Math.round((state.masterVolume ?? 0.82)*100)}% · Harmony: ${harmonyStyleConfig().name}${state.triplet ? ' · Triplet ON' : ''}`;
+  statusEl.textContent = `Mode: ${state.editMode === 'select' ? 'Select' : 'Pencil'} · ${noteSelectionText} · ${chordSelectionText}${copiedText} · 표시/재생: ${voices.join(' + ') || 'None'} · 편집 대상: ${editVoice} · Inst M/T/A: ${(state.instrumentMelody||'piano')} / ${(state.instrumentTenor||'electricPiano')} / ${(state.instrumentAlto||'organ')} · Chord Pad: ${state.chordPadEnabled ? 'ON' : 'OFF'} ${Math.round((state.chordPadVolume ?? 0.38)*100)}% · Master: ${Math.round((state.masterVolume ?? 0.82)*100)}% · Harmony: ${harmonyStyleConfig().name}${state.triplet ? ' · Triplet ON' : ''}`;
 }
 
 function syncUi(){
@@ -3065,7 +3151,6 @@ async function saveBlobToDevice(blob, filename){
 
 async function downloadAudioWav(){
   stopPlayback();
-  generateHarmony();
 
   const sorted = getSortedEvents();
   if(!sorted.length){
@@ -3116,7 +3201,6 @@ async function downloadAudioWav(){
 
 async function play(){
   stopPlayback();
-  generateHarmony();
 
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   let ctx = null;
@@ -3283,6 +3367,7 @@ function initEvents(){
   document.getElementById('removeChordBtn').addEventListener('click', removeChord);
   document.getElementById('tieToggleBtn').addEventListener('click', toggleTie);
   document.getElementById('fermataToggleBtn').addEventListener('click', toggleFermata);
+  document.getElementById('reharmonizeBtn').addEventListener('click', reharmonizeSelectionOrAll);
   document.getElementById('deleteSelectedBtn').addEventListener('click', deleteSelected);
   document.getElementById('deleteBtn').addEventListener('click', deleteLast);
   document.getElementById('clearBtn').addEventListener('click', clearAll);
@@ -3436,7 +3521,7 @@ function initEvents(){
       drag.historyPushed = true;
     }
 
-    ev.di = yToDi(y, box);
+    setEventPitchForVoice(ev, currentEditVoice(), yToDi(y, box));
     render();
   });
 
