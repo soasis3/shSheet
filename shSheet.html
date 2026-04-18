@@ -29,7 +29,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 .note-btn,.transport-btn,.view-btn,.short-btn{min-width:56px}
 .chord-preview{padding:7px 12px;border-radius:10px;background:var(--panel3);border:1px solid #475061;color:#78d66f;font-weight:bold;min-width:150px;text-align:center}
 .rhythm-hint{color:var(--muted);font-size:12px;padding:0 6px}
-#editorLayout{display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px;align-items:start}
+#editorLayout{display:grid;grid-template-columns:148px minmax(0,1fr);gap:8px;align-items:start}
 #scoreWrap{position:relative;background:var(--score);border:1px solid #3d4350;border-radius:12px;overflow:auto;max-height:calc(100vh - 315px);touch-action:none}
 #scoreViewport{position:relative;width:100%;height:100%;min-height:760px;background:var(--score);overflow:hidden}
 #scoreSurface{position:relative;background:var(--score);min-height:760px;transform-origin:0 0;will-change:transform}
@@ -69,6 +69,10 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 #notesPanel{display:block;padding:12px}
 #notesPanel .row-title{min-width:100%;margin-bottom:4px}
 .notes-stack{display:grid;gap:10px}
+.toolbar-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.play-main{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.play-settings{display:none;gap:8px;flex-wrap:wrap;align-items:center;width:100%;padding-top:4px;border-top:1px solid #2f3744;margin-top:2px}
+.play-settings.open{display:flex}
 .notes-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .notes-col{display:grid;gap:6px}
@@ -129,6 +133,58 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <button id="reharmonizeBtn">화음계산</button>
     </div>
 
+    <div class="toolbar-split">
+      <div class="row" id="fileRow">
+        <div class="row-title">File</div>
+        <button id="newBtn">New</button>
+        <button id="saveBrowserBtn">Save</button>
+        <button id="loadBrowserBtn">Open</button>
+        <button id="undoBtn" title="Undo">Undo</button>
+        <button id="redoBtn" title="Redo">Redo</button>
+        <input id="uploadJsonInput" type="file" accept=".json" style="display:none" />
+      </div>
+
+      <div class="row" id="playRow">
+        <div class="row-title">Play</div>
+        <div class="play-main">
+          <button class="view-btn voice-view active" data-voice="all">ALL</button>
+          <button class="view-btn voice-view active" data-voice="melody">Mel</button>
+          <button class="view-btn voice-view active" data-voice="tenor">Ten</button>
+          <button class="view-btn voice-view active" data-voice="alto">Alt</button>
+          <button id="playSettingsBtn">Setting</button>
+          <button id="rewindBtn" class="transport-btn compact-btn">RW</button>
+          <button id="playBtn" class="transport-btn compact-btn">PLAY</button>
+          <button id="stopBtn" class="transport-btn compact-btn">STOP</button>
+          <button id="downloadAudioBtn">Wav</button>
+        </div>
+        <div id="playSettingsPanel" class="play-settings">
+          <label>Inst</label>
+          <select id="melodyInstrumentSelect">
+            <option value="piano">Piano</option>
+            <option value="electricPiano">E.Piano</option>
+            <option value="organ">Organ</option>
+            <option value="synthLead">Synth</option>
+            <option value="choir">Choir</option>
+            <option value="strings">Strings</option>
+          </select>
+          <label>Pad Inst</label>
+          <select id="chordPadInstrumentSelect">
+            <option value="synthPad" selected>Synth Pad</option>
+            <option value="piano">Piano</option>
+            <option value="electricPiano">E.Piano</option>
+            <option value="organ">Organ</option>
+            <option value="choir">Choir</option>
+            <option value="strings">Strings</option>
+          </select>
+          <label>Pad Vol</label>
+          <input id="chordPadVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.38" style="width:60px;" />
+          <span id="chordPadVolumeValue" style="color:var(--muted);font-size:12px;">38%</span>
+          <label>Master Vol</label>
+          <input id="masterVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.82" style="width:120px;" />
+          <span id="masterVolumeValue" style="color:var(--muted);font-size:12px;">82%</span>
+        </div>
+      </div>
+    </div>
 
     <div class="row" id="chordRow">
       <div class="row-title">Chord</div>
@@ -155,52 +211,6 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <div id="chordPreview" class="chord-preview">C</div>
       <button id="applyChordBtn">Add</button>
       <button id="removeChordBtn">Del</button>
-    </div>
-
-    <div class="row" id="playRow">
-      <div class="row-title">Play</div>
-      <button class="view-btn voice-view active" data-voice="all">ALL</button>
-      <button class="view-btn voice-view active" data-voice="melody">Mel</button>
-      <button class="view-btn voice-view active" data-voice="tenor">Ten</button>
-      <button class="view-btn voice-view active" data-voice="alto">Alt</button>
-      <label>Inst</label>
-      <select id="melodyInstrumentSelect">
-        <option value="piano">Piano</option>
-        <option value="electricPiano">E.Piano</option>
-        <option value="organ">Organ</option>
-        <option value="synthLead">Synth</option>
-        <option value="choir">Choir</option>
-        <option value="strings">Strings</option>
-      </select>
-      <label>Pad Inst</label>
-      <select id="chordPadInstrumentSelect">
-        <option value="synthPad" selected>Synth Pad</option>
-        <option value="piano">Piano</option>
-        <option value="electricPiano">E.Piano</option>
-        <option value="organ">Organ</option>
-        <option value="choir">Choir</option>
-        <option value="strings">Strings</option>
-      </select>
-      <label>Pad Vol</label>
-      <input id="chordPadVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.38" style="width:60px;" />
-      <span id="chordPadVolumeValue" style="color:var(--muted);font-size:12px;">38%</span>
-      <label>Master Vol</label>
-      <input id="masterVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.82" style="width:120px;" />
-      <span id="masterVolumeValue" style="color:var(--muted);font-size:12px;">82%</span>
-      <button id="rewindBtn" class="transport-btn compact-btn">RW</button>
-      <button id="playBtn" class="transport-btn compact-btn">PLAY</button>
-      <button id="stopBtn" class="transport-btn compact-btn">STOP</button>
-      <button id="downloadAudioBtn">Wav</button>
-    </div>
-
-    <div class="row" id="fileRow">
-      <div class="row-title">File</div>
-      <button id="newBtn">New</button>
-      <button id="saveBrowserBtn">Save</button>
-      <button id="loadBrowserBtn">Open</button>
-      <button id="undoBtn" title="Undo">Undo</button>
-      <button id="redoBtn" title="Redo">Redo</button>
-      <input id="uploadJsonInput" type="file" accept=".json" style="display:none" />
     </div>
   </div>
 
@@ -299,6 +309,8 @@ const keyModeSelect = document.getElementById('keyModeSelect');
 const timeSelect = document.getElementById('timeSelect');
 const tempoInput = document.getElementById('tempoInput');
 const styleSelect = document.getElementById('styleSelect');
+const playSettingsBtn = document.getElementById('playSettingsBtn');
+const playSettingsPanel = document.getElementById('playSettingsPanel');
 const chordPadVolumeSlider = document.getElementById('chordPadVolumeSlider');
 const chordPadVolumeValue = document.getElementById('chordPadVolumeValue');
 const masterVolumeSlider = document.getElementById('masterVolumeSlider');
@@ -411,6 +423,7 @@ let touchGesture = {
   contentX:0,
   contentY:0
 };
+let playSettingsOpen = false;
 
 function mod(n,m){ return ((n%m)+m)%m; }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
@@ -2488,6 +2501,8 @@ function syncUi(){
   }
   melodyInstrumentSelect.value = state.instrumentMelody || 'piano';
   chordPadInstrumentSelect.value = state.instrumentChordPad || 'synthPad';
+  if(playSettingsPanel) playSettingsPanel.classList.toggle('open', !!playSettingsOpen);
+  if(playSettingsBtn) playSettingsBtn.classList.toggle('active', !!playSettingsOpen);
 
   document.querySelectorAll('.note-length').forEach(b=>b.classList.toggle('active', state.inputKind==='note' && Number(b.dataset.duration) === state.duration));
   document.querySelectorAll('.rest-length').forEach(b=>b.classList.toggle('active', state.inputKind==='rest' && Number(b.dataset.duration) === state.duration));
@@ -3347,6 +3362,12 @@ function initEvents(){
   }
   melodyInstrumentSelect.addEventListener('change', ()=>{ state.instrumentMelody = melodyInstrumentSelect.value; state.instrumentTenor = state.instrumentMelody; state.instrumentAlto = state.instrumentMelody; updateStatus(); });
   chordPadInstrumentSelect.addEventListener('change', ()=>{ state.instrumentChordPad = chordPadInstrumentSelect.value; updateStatus(); });
+  if(playSettingsBtn){
+    playSettingsBtn.addEventListener('click', ()=>{
+      playSettingsOpen = !playSettingsOpen;
+      syncUi();
+    });
+  }
 
   document.querySelectorAll('.note-length').forEach(b=>b.addEventListener('click',()=>{ state.inputKind='note'; state.duration=Number(b.dataset.duration); syncUi(); }));
   document.querySelectorAll('.rest-length').forEach(b=>b.addEventListener('click',()=>{ state.inputKind='rest'; state.duration=Number(b.dataset.duration); syncUi(); }));
