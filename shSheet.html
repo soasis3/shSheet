@@ -238,8 +238,8 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
           <span class="group-label">Dot / Tuplet</span>
           <div class="notes-inline2">
             <button class="note-btn compact-btn dot-mode active" data-dot="0">Base</button>
-            <button class="note-btn compact-btn dot-mode" data-dot="1">Dot</button>
-            <button class="note-btn compact-btn dot-mode" data-dot="2">Dbl</button>
+            <button class="note-btn compact-btn dot-mode" data-dot="1">.</button>
+            <button class="note-btn compact-btn dot-mode" data-dot="2">..</button>
             <button id="tripletBtn" class="note-btn compact-btn" title="Tuplet">3</button>
           </div>
         </div>
@@ -418,15 +418,10 @@ let touchGesture = {
 let playSettingsOpen = false;
 
 const ICON_SVGS = {
-  draw:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-.8L18.5 8.7a1.8 1.8 0 0 0 0-2.5l-.7-.7a1.8 1.8 0 0 0-2.5 0L4.8 16 4 20z"/><path d="M13.5 6.5l4 4"/></svg>`,
-  select:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5v4M5 4.5h4M19 4.5h-4M19 4.5v4M5 19.5h4M5 19.5v-4M19 19.5h-4M19 19.5v-4"/><rect x="8" y="8" width="8" height="8" rx="1.5"/></svg>`,
-  note:`<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse class="fill" cx="9" cy="17" rx="4.2" ry="3.1" transform="rotate(-20 9 17)"/><path d="M12 16V5"/><path d="M12 5c3 .8 5 1.9 7 3.5v2.5c-2-1.4-4.2-2.5-7-3.3"/></svg>`,
-  rest:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h10l-7 6h5l-6 6"/></svg>`,
-  dot:`<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse class="fill" cx="9" cy="16.5" rx="4.2" ry="3.1" transform="rotate(-20 9 16.5)"/><path d="M12 15.5V5"/><circle class="fill" cx="18.2" cy="16.5" r="1.8"/></svg>`,
-  dbl:`<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse class="fill" cx="8.5" cy="16.5" rx="4.2" ry="3.1" transform="rotate(-20 8.5 16.5)"/><path d="M11.5 15.5V5"/><circle class="fill" cx="17" cy="15.8" r="1.5"/><circle class="fill" cx="20.3" cy="17.8" r="1.5"/></svg>`,
-  tuplet:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 8.5c1-1.2 2.2-1.8 3.7-1.8H10"/><path d="M14 6.7h1.8c1.5 0 2.7.6 3.7 1.8"/><path d="M4.5 15.5c1 1.2 2.2 1.8 3.7 1.8H10"/><path d="M14 17.3h1.8c1.5 0 2.7-.6 3.7-1.8"/><path d="M11 9.3l2-1.1v7.6"/><path d="M10.6 16.4h4.4"/></svg>`,
-  tie:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14c2.7-3.4 5.2-5 7.8-5 2.6 0 4.7 1.6 8.2 5"/><path d="M4 15.5c2.7 2.6 5.2 3.8 7.8 3.8 2.6 0 4.7-1.2 8.2-3.8"/></svg>`,
-  hold:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 14.5c1.8-2.5 3.8-3.7 6-3.7s4.2 1.2 6 3.7"/><circle class="fill" cx="12" cy="7" r="1.8"/></svg>`
+  rewind:`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 7l-6 5 6 5z"/><path d="M19 7l-6 5 6 5z"/></svg>`,
+  play:`<svg viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M8 6.5v11l9-5.5z"/></svg>`,
+  stop:`<svg viewBox="0 0 24 24" aria-hidden="true"><rect class="fill" x="7" y="7" width="10" height="10" rx="1.5"/></svg>`,
+  settings:`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 4.5v2.1M12 17.4v2.1M4.5 12h2.1M17.4 12h2.1M6.8 6.8l1.5 1.5M15.7 15.7l1.5 1.5M17.2 6.8l-1.5 1.5M8.3 15.7l-1.5 1.5"/></svg>`
 };
 
 function mod(n,m){ return ((n%m)+m)%m; }
@@ -753,31 +748,10 @@ function setButtonIcon(button, iconKey, label, iconOnly=false){
 }
 
 function hydrateNotationIcons(){
-  setButtonIcon(document.getElementById('pencilModeBtn'), 'draw', 'Draw');
-  setButtonIcon(document.getElementById('selectModeBtn'), 'select', 'Sel');
-  setButtonIcon(document.getElementById('tieToggleBtn'), 'tie', 'Tie');
-  setButtonIcon(document.getElementById('fermataToggleBtn'), 'hold', 'Hold');
-
-  document.querySelectorAll('.note-length').forEach(button=>{
-    const duration = Number(button.dataset.duration);
-    const labelMap = {4:'1', 2:'2', 1:'4', 0.5:'8', 0.25:'16', 0.125:'32'};
-    setButtonIcon(button, 'note', String(labelMap[duration] || ''));
-  });
-
-  document.querySelectorAll('.rest-length').forEach(button=>{
-    const duration = Number(button.dataset.duration);
-    const labelMap = {4:'1', 2:'2', 1:'4', 0.5:'8', 0.25:'16', 0.125:'32'};
-    setButtonIcon(button, 'rest', String(labelMap[duration] || ''));
-  });
-
-  document.querySelectorAll('.dot-mode').forEach(button=>{
-    const dot = Number(button.dataset.dot);
-    const iconKey = dot === 0 ? 'note' : (dot === 1 ? 'dot' : 'dbl');
-    const label = dot === 0 ? 'Base' : (dot === 1 ? 'Dot' : 'Dbl');
-    setButtonIcon(button, iconKey, label);
-  });
-
-  setButtonIcon(document.getElementById('tripletBtn'), 'tuplet', '3');
+  setButtonIcon(document.getElementById('rewindBtn'), 'rewind', 'RW');
+  setButtonIcon(document.getElementById('playBtn'), 'play', 'PLAY');
+  setButtonIcon(document.getElementById('stopBtn'), 'stop', 'STOP');
+  setButtonIcon(document.getElementById('playSettingsBtn'), 'settings', 'SET');
 }
 
 function snapshotForHistory(){
