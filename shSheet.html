@@ -116,6 +116,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
         <option value="pop">Pop Basic</option>
         <option value="kpop">K-Pop / Ballad</option>
         <option value="ccm" selected>CCM Worship</option>
+        <option value="markers">Markers Worship KR</option>
         <option value="gospel">Contemporary Gospel</option>
         <option value="tight">Tight 3-Part</option>
         <option value="open">Open 3-Part</option>
@@ -1299,6 +1300,22 @@ function harmonyStyleConfig(){
       altoWidePenalty:12,
       movementWeight:5,
       duplicatePenalty:90,
+      open:false
+    },
+    markers: {
+      name:'Markers Worship KR',
+      // 마커스 계열 현대 예배는 한국 일반 CCM보다
+      // add2/add9의 맑은 패드감과 조금 더 열린 진행을 자주 쓰지만
+      // 여전히 회중찬양이라 과한 재즈 텐션보다는 안정적인 3부 진행이 중심이다.
+      upperRange:14,
+      lowerRange:13,
+      extraTensions:[2,9],
+      tenorTargets:[3,4,5],
+      altoTargets:[3,4,5],
+      tenorWidePenalty:8,
+      altoWidePenalty:9,
+      movementWeight:4,
+      duplicatePenalty:65,
       open:false
     },
     gospel: {
