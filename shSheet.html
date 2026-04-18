@@ -16,7 +16,7 @@
 body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text);user-select:none;-webkit-user-select:none;-webkit-text-size-adjust:100%}
 input,select{user-select:text;-webkit-user-select:text}
 #app{padding:14px}
-.toolbar{display:grid;grid-template-rows:auto auto auto auto auto;gap:8px;margin-bottom:12px}
+.toolbar{display:grid;grid-template-columns:240px minmax(0,1fr);gap:8px;margin-bottom:12px;align-items:start}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
 .row-title{min-width:72px;color:var(--muted);font-size:12px;font-weight:bold;letter-spacing:.04em;text-transform:uppercase}
 label,.group-label{color:var(--muted);font-size:12px;margin-left:4px}
@@ -31,6 +31,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 .compact-btn{font-family:Arial,sans-serif;font-size:12px;font-weight:700}
 .transport-btn{min-width:44px;font-size:17px;font-weight:bold}
 .view-btn{min-width:72px;font-weight:bold}
+.short-btn{min-width:48px;padding:7px 9px}
 .chord-preview{padding:7px 12px;border-radius:10px;background:var(--panel3);border:1px solid #475061;color:#78d66f;font-weight:bold;min-width:150px;text-align:center}
 .rhythm-hint{color:var(--muted);font-size:12px;padding:0 6px}
 #scoreWrap{position:relative;background:var(--score);border:1px solid #3d4350;border-radius:12px;overflow:auto;max-height:calc(100vh - 315px);touch-action:none}
@@ -69,9 +70,20 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
 }
 #errorBox{display:none;background:#2b1111;color:#ffcaca;border:1px solid #6a2424;border-radius:10px;padding:12px;margin-bottom:12px}
 #status{margin-top:8px;font-size:12px;color:var(--muted)}
+#notesPanel{grid-column:1;grid-row:1 / span 4;display:block;padding:12px}
+#notesPanel .row-title{min-width:100%;margin-bottom:4px}
+.notes-stack{display:grid;gap:10px}
+.notes-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.notes-col{display:grid;gap:6px}
+.notes-group{display:grid;gap:6px}
+.notes-delete{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.notes-inline4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.notes-inline3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+#songRow,#chordRow,#playRow,#fileRow{grid-column:2}
 @media (max-width: 820px){
   #app{padding:10px}
-  .toolbar{gap:6px;margin-bottom:8px}
+  .toolbar{grid-template-columns:1fr;gap:6px;margin-bottom:8px}
   .row{gap:6px;padding:8px;border-radius:10px}
   .row-title{min-width:100%;margin-bottom:2px}
   label,.group-label{font-size:11px;margin-left:0}
@@ -84,6 +96,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
   #titleInput{width:min(100%, 220px)}
   #scoreWrap{height:64vh;max-height:none;min-height:420px}
   #scoreViewport{min-height:420px}
+  #notesPanel,#songRow,#chordRow,#playRow,#fileRow{grid-column:auto;grid-row:auto}
 }
 @media (max-width: 520px){
   #app{padding:8px}
@@ -98,7 +111,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
   <div id="errorBox"></div>
 
   <div class="toolbar">
-    <div class="row">
+    <div class="row" id="songRow">
       <div class="row-title">Song</div>
       <label>Title</label><input id="titleInput" type="text" value="Untitled Song" />
       <label>Key</label>
@@ -121,62 +134,84 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
         <option value="tight">Tight 3-Part</option>
         <option value="open">Open 3-Part</option>
       </select>
-    </div>
-
-    <div class="row">
-      <div class="row-title">Notes</div>
-
-      <span class="group-label">Edit</span>
-      <button id="pencilModeBtn" class="note-btn compact-btn active" title="연필 모드: 오선지 클릭으로 음표 추가 / 기존 음표 드래그 수정">Draw</button>
-      <button id="selectModeBtn" class="note-btn compact-btn" title="선택 모드: 음표 선택만, 추가/수정 없음">Sel</button>
-      <button id="undoBtn" class="note-btn compact-btn" title="Undo">Undo</button>
-      <button id="redoBtn" class="note-btn compact-btn" title="Redo">Redo</button>
-
-      <span class="group-label">Note</span>
-      <button class="note-btn duration-btn note-length" data-duration="4">1n</button>
-      <button class="note-btn duration-btn note-length" data-duration="2">2n</button>
-      <button class="note-btn duration-btn note-length active" data-duration="1">4n</button>
-      <button class="note-btn duration-btn note-length" data-duration="0.5">8n</button>
-      <button class="note-btn duration-btn note-length" data-duration="0.25">16n</button>
-      <button class="note-btn duration-btn note-length" data-duration="0.125">32n</button>
-
-      <span class="group-label">Rest</span>
-      <button class="note-btn duration-btn rest-length" data-duration="4">R1</button>
-      <button class="note-btn duration-btn rest-length" data-duration="2">R2</button>
-      <button class="note-btn duration-btn rest-length" data-duration="1">R4</button>
-      <button class="note-btn duration-btn rest-length" data-duration="0.5">R8</button>
-      <button class="note-btn duration-btn rest-length" data-duration="0.25">R16</button>
-      <button class="note-btn duration-btn rest-length" data-duration="0.125">R32</button>
-
-      <span class="group-label">Dot</span>
-      <button class="note-btn compact-btn dot-mode active" data-dot="0">Base</button>
-      <button class="note-btn compact-btn dot-mode" data-dot="1">Dot</button>
-      <button class="note-btn compact-btn dot-mode" data-dot="2">Dbl</button>
-
-      <span class="group-label">Tuplet</span>
-      <button id="tripletBtn" class="note-btn" title="셋잇단음표">3</button>
-
-      <span class="group-label">Accidental</span>
-      <button class="note-btn accidental-mode active" data-accidental="auto">Auto</button>
-      <button class="note-btn compact-btn accidental-mode" data-accidental="natural">Nat</button>
-      <button class="note-btn compact-btn accidental-mode" data-accidental="sharp">#</button>
-      <button class="note-btn compact-btn accidental-mode" data-accidental="flat">b</button>
-
-      <span class="group-label">Mark</span>
-      <button id="tieToggleBtn" class="note-btn compact-btn" title="선택 음표와 다음 음표를 연결선으로 연결합니다. 같은 음이면 붙임줄, 다른 음이면 이음줄로 처리합니다.">Tie</button>
-      <button id="fermataToggleBtn" class="note-btn compact-btn" title="늘임표 / Fermata">Hold</button>
       <button id="reharmonizeBtn">화음계산</button>
-
-      <button id="deleteSelectedBtn">선택 삭제</button>
-      <button id="deleteBtn">마지막 삭제</button>
-      <button id="clearBtn">전체 삭제</button>
     </div>
 
-    <div class="row">
+    <div class="row" id="notesPanel">
+      <div class="row-title">Notes</div>
+      <div class="notes-stack">
+        <div class="notes-row2">
+          <button id="pencilModeBtn" class="note-btn compact-btn active" title="연필 모드: 오선지 클릭으로 음표 추가 / 기존 음표 드래그 수정">Draw</button>
+          <button id="selectModeBtn" class="note-btn compact-btn" title="선택 모드: 음표 선택만, 추가/수정 없음">Sel</button>
+        </div>
+        <div class="notes-row2">
+          <button id="undoBtn" class="note-btn compact-btn" title="Undo">Undo</button>
+          <button id="redoBtn" class="note-btn compact-btn" title="Redo">Redo</button>
+        </div>
+        <div class="notes-grid">
+          <div class="notes-col">
+            <span class="group-label">Rest</span>
+            <button class="note-btn duration-btn rest-length" data-duration="4">R1</button>
+            <button class="note-btn duration-btn rest-length" data-duration="2">R2</button>
+            <button class="note-btn duration-btn rest-length" data-duration="1">R4</button>
+            <button class="note-btn duration-btn rest-length" data-duration="0.5">R8</button>
+            <button class="note-btn duration-btn rest-length" data-duration="0.25">R16</button>
+            <button class="note-btn duration-btn rest-length" data-duration="0.125">R32</button>
+          </div>
+          <div class="notes-col">
+            <span class="group-label">Note</span>
+            <button class="note-btn duration-btn note-length" data-duration="4">1n</button>
+            <button class="note-btn duration-btn note-length" data-duration="2">2n</button>
+            <button class="note-btn duration-btn note-length active" data-duration="1">4n</button>
+            <button class="note-btn duration-btn note-length" data-duration="0.5">8n</button>
+            <button class="note-btn duration-btn note-length" data-duration="0.25">16n</button>
+            <button class="note-btn duration-btn note-length" data-duration="0.125">32n</button>
+          </div>
+        </div>
+        <div class="notes-group">
+          <span class="group-label">Dot / Tuplet</span>
+          <div class="notes-inline4">
+            <button class="note-btn compact-btn dot-mode active" data-dot="0">Base</button>
+            <button class="note-btn compact-btn dot-mode" data-dot="1">Dot</button>
+            <button class="note-btn compact-btn dot-mode" data-dot="2">Dbl</button>
+            <button id="tripletBtn" class="note-btn compact-btn" title="셋잇단음표">3</button>
+          </div>
+        </div>
+        <div class="notes-group">
+          <span class="group-label">Accidental</span>
+          <div class="notes-inline4">
+            <button class="note-btn accidental-mode active" data-accidental="auto">Auto</button>
+            <button class="note-btn compact-btn accidental-mode" data-accidental="natural">Nat</button>
+            <button class="note-btn compact-btn accidental-mode" data-accidental="sharp">#</button>
+            <button class="note-btn compact-btn accidental-mode" data-accidental="flat">b</button>
+          </div>
+        </div>
+        <div class="notes-group">
+          <span class="group-label">Mark</span>
+          <div class="notes-row2">
+            <button id="tieToggleBtn" class="note-btn compact-btn" title="선택 음표와 다음 음표를 연결선으로 연결합니다. 같은 음이면 붙임줄, 다른 음이면 이음줄로 처리합니다.">Tie</button>
+            <button id="fermataToggleBtn" class="note-btn compact-btn" title="늘임표 / Fermata">Hold</button>
+          </div>
+        </div>
+        <div class="notes-group">
+          <span class="group-label">Delete</span>
+          <div class="notes-delete">
+            <button id="deleteSelectedBtn" class="short-btn">Sel</button>
+            <button id="deleteBtn" class="short-btn">Last</button>
+            <button id="clearBtn" class="short-btn">All</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" id="chordRow">
       <div class="row-title">Chord</div>
       <label>Root</label>
-      <select id="chordRootSelect"><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>A</option><option>B</option></select>
-      <select id="chordAccSelect"><option value="">♮</option><option value="#">#</option><option value="b">b</option></select>
+      <select id="chordRootSelect">
+        <option>C</option><option>C#</option><option>Db</option><option>D</option><option>D#</option><option>Eb</option>
+        <option>E</option><option>F</option><option>F#</option><option>Gb</option><option>G</option><option>G#</option>
+        <option>Ab</option><option>A</option><option>A#</option><option>Bb</option><option>B</option><option>Cb</option>
+      </select>
       <label>Type</label>
       <select id="chordTypeSelect">
         <option value="maj">Major</option><option value="m">Minor</option><option value="dom7">Dominant 7</option>
@@ -184,9 +219,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
         <option value="dim">Diminished</option><option value="dim7">Diminished 7</option><option value="m7b5">Half-dim 7</option>
         <option value="aug">Augmented</option><option value="sus2">sus2</option><option value="sus4">sus4</option><option value="7sus4">7sus4</option>
       </select>
-      <label>Ext</label><select id="chordExtSelect"></select>
-      <label>Add</label><select id="chordAddSelect"></select>
-      <label>Alter</label><select id="chordAltSelect"></select>
+      <label>Flavor</label><select id="chordFlavorSelect"></select>
       <label>/</label>
       <select id="slashBassSelect">
         <option value="">None</option><option>C</option><option>C#</option><option>Db</option><option>D</option><option>D#</option><option>Eb</option>
@@ -194,17 +227,17 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
         <option>A</option><option>A#</option><option>Bb</option><option>B</option>
       </select>
       <div id="chordPreview" class="chord-preview">C</div>
-      <button id="applyChordBtn">선택에 코드 찍기</button>
-      <button id="removeChordBtn">선택 코드 제거</button>
+      <button id="applyChordBtn">Add</button>
+      <button id="removeChordBtn">Del</button>
     </div>
 
-    <div class="row">
+    <div class="row" id="playRow">
       <div class="row-title">Play</div>
       <button class="view-btn voice-view active" data-voice="all">ALL</button>
-      <button class="view-btn voice-view active" data-voice="melody">Melody</button>
-      <button class="view-btn voice-view active" data-voice="tenor">Tenor</button>
-      <button class="view-btn voice-view active" data-voice="alto">Alto</button>
-      <label>M Inst</label>
+      <button class="view-btn voice-view active" data-voice="melody">Mel</button>
+      <button class="view-btn voice-view active" data-voice="tenor">Ten</button>
+      <button class="view-btn voice-view active" data-voice="alto">Alt</button>
+      <label>Inst</label>
       <select id="melodyInstrumentSelect">
         <option value="piano">Piano</option>
         <option value="electricPiano">E.Piano</option>
@@ -213,28 +246,6 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
         <option value="choir">Choir</option>
         <option value="strings">Strings</option>
       </select>
-
-      <label>T Inst</label>
-      <select id="tenorInstrumentSelect">
-        <option value="piano">Piano</option>
-        <option value="electricPiano" selected>E.Piano</option>
-        <option value="organ">Organ</option>
-        <option value="synthLead">Synth</option>
-        <option value="choir">Choir</option>
-        <option value="strings">Strings</option>
-      </select>
-
-      <label>A Inst</label>
-      <select id="altoInstrumentSelect">
-        <option value="piano">Piano</option>
-        <option value="electricPiano">E.Piano</option>
-        <option value="organ" selected>Organ</option>
-        <option value="synthLead">Synth</option>
-        <option value="choir">Choir</option>
-        <option value="strings">Strings</option>
-      </select>
-
-      <button id="chordPadBtn" class="view-btn" title="세컨건반처럼 코드톤 패드를 같이 재생">Chord Pad</button>
       <label>Pad Inst</label>
       <select id="chordPadInstrumentSelect">
         <option value="synthPad" selected>Synth Pad</option>
@@ -245,24 +256,22 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
         <option value="strings">Strings</option>
       </select>
       <label>Pad Vol</label>
-      <input id="chordPadVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.38" style="width:120px;" />
+      <input id="chordPadVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.38" style="width:60px;" />
       <span id="chordPadVolumeValue" style="color:var(--muted);font-size:12px;">38%</span>
       <label>Master Vol</label>
       <input id="masterVolumeSlider" type="range" min="0" max="1" step="0.01" value="0.82" style="width:120px;" />
       <span id="masterVolumeValue" style="color:var(--muted);font-size:12px;">82%</span>
-      <button id="rewindBtn" class="transport-btn compact-btn">|&lt;</button>
-      <button id="playBtn" class="transport-btn compact-btn">Play</button>
-      <button id="stopBtn" class="transport-btn compact-btn">Stop</button>
-      <button id="downloadAudioBtn">WAV 다운로드</button>
+      <button id="rewindBtn" class="transport-btn compact-btn">RW</button>
+      <button id="playBtn" class="transport-btn compact-btn">PLAY</button>
+      <button id="stopBtn" class="transport-btn compact-btn">STOP</button>
+      <button id="downloadAudioBtn">Wav</button>
     </div>
 
-    <div class="row">
+    <div class="row" id="fileRow">
       <div class="row-title">File</div>
-      <button id="saveBrowserBtn">브라우저 저장</button>
-      <button id="loadBrowserBtn">브라우저 불러오기</button>
-      <button id="downloadJsonBtn">JSON 파일 저장</button>
+      <button id="saveBrowserBtn">Save</button>
+      <button id="loadBrowserBtn">Open</button>
       <input id="uploadJsonInput" type="file" accept=".json" style="display:none" />
-      <button id="uploadJsonBtn">JSON 파일 불러오기</button>
     </div>
   </div>
 
@@ -303,16 +312,11 @@ const chordPadVolumeValue = document.getElementById('chordPadVolumeValue');
 const masterVolumeSlider = document.getElementById('masterVolumeSlider');
 const masterVolumeValue = document.getElementById('masterVolumeValue');
 const melodyInstrumentSelect = document.getElementById('melodyInstrumentSelect');
-const tenorInstrumentSelect = document.getElementById('tenorInstrumentSelect');
-const altoInstrumentSelect = document.getElementById('altoInstrumentSelect');
 const chordPadInstrumentSelect = document.getElementById('chordPadInstrumentSelect');
 
 const chordRootSelect = document.getElementById('chordRootSelect');
-const chordAccSelect = document.getElementById('chordAccSelect');
 const chordTypeSelect = document.getElementById('chordTypeSelect');
-const chordExtSelect = document.getElementById('chordExtSelect');
-const chordAddSelect = document.getElementById('chordAddSelect');
-const chordAltSelect = document.getElementById('chordAltSelect');
+const chordFlavorSelect = document.getElementById('chordFlavorSelect');
 const slashBassSelect = document.getElementById('slashBassSelect');
 const chordPreview = document.getElementById('chordPreview');
 
@@ -1163,31 +1167,23 @@ function addChordAnnotation(note, text){
 
 function getChordText(){
   const rule = CHORD_RULES[chordTypeSelect.value] || CHORD_RULES.maj;
-  return chordRootSelect.value + chordAccSelect.value + rule.symbol +
-    (chordExtSelect.value || '') +
-    (chordAddSelect.value || '') +
-    (chordAltSelect.value || '') +
+  return chordRootSelect.value + rule.symbol +
+    (chordFlavorSelect.value || '') +
     (slashBassSelect.value ? '/' + slashBassSelect.value : '');
 }
 
 function updateChordOptions(){
   const rule = CHORD_RULES[chordTypeSelect.value] || CHORD_RULES.maj;
-
-  function fill(sel, arr){
-    const old = sel.value;
-    sel.innerHTML = '';
-    for(const v of arr){
-      const o = document.createElement('option');
-      o.value = v;
-      o.textContent = v || 'None';
-      sel.appendChild(o);
-    }
-    sel.value = arr.includes(old) ? old : '';
+  const current = chordFlavorSelect.value;
+  const flavors = [...new Set(['', ...(rule.exts || []), ...(rule.adds || []), ...(rule.alters || [])])];
+  chordFlavorSelect.innerHTML = '';
+  for(const value of flavors){
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value || 'None';
+    chordFlavorSelect.appendChild(option);
   }
-
-  fill(chordExtSelect, rule.exts);
-  fill(chordAddSelect, rule.adds);
-  fill(chordAltSelect, rule.alters);
+  chordFlavorSelect.value = flavors.includes(current) ? current : '';
   chordPreview.textContent = getChordText();
 }
 
@@ -1404,8 +1400,22 @@ function harmonyContextForEvent(sorted, index, cfg){
   const basePcs = parseChordPcs(chord);
   let pcs = addStyleTensions(basePcs, chord, cfg);
   let chordShiftOnTie = false;
+  let pulledForwardOnTie = false;
 
-  if(index > 0){
+  if(index < sorted.length - 1){
+    const next = sorted[index + 1];
+    if(next && e.tieToNext && !e.rest && !next.rest){
+      const sameMelody = melodyMidiForEvent(e) === melodyMidiForEvent(next);
+      const nextChord = effectiveChordAtEvent(next);
+      if(sameMelody && nextChord !== chord){
+        pcs = [...parseChordPcs(nextChord)];
+        chordShiftOnTie = true;
+        pulledForwardOnTie = true;
+      }
+    }
+  }
+
+  if(!pulledForwardOnTie && index > 0){
     const prev = sorted[index - 1];
     if(prev && prev.tieToNext && !prev.rest && !e.rest){
       const sameMelody = melodyMidiForEvent(prev) === melodyMidiForEvent(e);
@@ -2450,7 +2460,6 @@ function updateSelectedButtons(){
   ferm.disabled = !e;
   ferm.classList.toggle('active', !!(e && e.fermata));
 }
-
 function updateStatus(){
   const e = selectedEvent();
   const voices = [];
@@ -2461,12 +2470,13 @@ function updateStatus(){
 
   ensureSelectionState();
   ensureChordSelectionState();
-  const noteSelectionText = state.selectedIds.length > 1 ? `${state.selectedIds.length}개 음표 선택` : (e ? '음표 ID '+e.id : '음표 선택 없음');
-  const chordSelectionText = state.selectedChordIds.length ? `코드 ${state.selectedChordIds.length}개 선택` : '코드 선택 없음';
-  const copiedText = copiedMode === 'chords' && copiedChordItems.length ? ` · 복사: 코드 ${copiedChordItems.length}개` : (copiedMode === 'events' && copiedEvents.length ? ` · 복사: 음표 ${copiedEvents.length}개` : '');
-  statusEl.textContent = `Mode: ${state.editMode === 'select' ? 'Select' : 'Pencil'} · ${noteSelectionText} · ${chordSelectionText}${copiedText} · 표시/재생: ${voices.join(' + ') || 'None'} · 편집 대상: ${editVoice} · Inst M/T/A: ${(state.instrumentMelody||'piano')} / ${(state.instrumentTenor||'electricPiano')} / ${(state.instrumentAlto||'organ')} · Chord Pad: ${state.chordPadEnabled ? 'ON' : 'OFF'} ${Math.round((state.chordPadVolume ?? 0.38)*100)}% · Master: ${Math.round((state.masterVolume ?? 0.82)*100)}% · Harmony: ${harmonyStyleConfig().name}${state.triplet ? ' · Triplet ON' : ''}`;
+  const noteSelectionText = state.selectedIds.length > 1 ? `${state.selectedIds.length} notes selected` : (e ? 'Note ID ' + e.id : 'No note selected');
+  const chordSelectionText = state.selectedChordIds.length ? `${state.selectedChordIds.length} chords selected` : 'No chord selected';
+  let copiedText = '';
+  if(copiedMode === 'chords' && copiedChordItems.length) copiedText = ` | Copied chords: ${copiedChordItems.length}`;
+  else if(copiedMode === 'events' && copiedEvents.length) copiedText = ` | Copied notes: ${copiedEvents.length}`;
+  statusEl.textContent = `Mode: ${state.editMode === 'select' ? 'Select' : 'Pencil'} | ${noteSelectionText} | ${chordSelectionText}${copiedText} | Voices: ${voices.join(' + ') || 'None'} | Edit: ${editVoice} | Inst: ${(state.instrumentMelody || 'piano')} | Pad: ${(state.instrumentChordPad || 'synthPad')} ${Math.round((state.chordPadVolume ?? 0.38) * 100)}% | Master: ${Math.round((state.masterVolume ?? 0.82) * 100)}% | Harmony: ${harmonyStyleConfig().name}${state.triplet ? ' | Triplet ON' : ''}`;
 }
-
 function syncUi(){
   titleInput.value = state.title;
   keyRootSelect.value = state.keyRoot;
@@ -2483,8 +2493,6 @@ function syncUi(){
     masterVolumeValue.textContent = `${Math.round((state.masterVolume ?? 0.82) * 100)}%`;
   }
   melodyInstrumentSelect.value = state.instrumentMelody || 'piano';
-  tenorInstrumentSelect.value = state.instrumentTenor || 'electricPiano';
-  altoInstrumentSelect.value = state.instrumentAlto || 'organ';
   chordPadInstrumentSelect.value = state.instrumentChordPad || 'synthPad';
 
   document.querySelectorAll('.note-length').forEach(b=>b.classList.toggle('active', state.inputKind==='note' && Number(b.dataset.duration) === state.duration));
@@ -2495,8 +2503,6 @@ function syncUi(){
   document.querySelectorAll('.accidental-mode').forEach(b=>b.classList.toggle('active', b.dataset.accidental === state.accidental));
 
   updateVoiceButtons();
-  const chordPadBtn = document.getElementById('chordPadBtn');
-  if(chordPadBtn) chordPadBtn.classList.toggle('active', !!state.chordPadEnabled);
   setEditMode(state.editMode || 'draw');
   updateUndoRedoButtons();
   updateChordOptions();
@@ -2716,10 +2722,7 @@ function playPiano(ctx,midi,start,dur,level=.13){
   });
 }
 function voiceInstrument(voice){
-  if(voice === 'melody') return state.instrumentMelody || 'piano';
-  if(voice === 'tenor') return state.instrumentTenor || 'electricPiano';
-  if(voice === 'alto') return state.instrumentAlto || 'organ';
-  return 'piano';
+  return state.instrumentMelody || 'piano';
 }
 
 function playOscNote(ctx, midi, start, dur, opts){
@@ -2973,8 +2976,6 @@ function playSynthPadNote(ctx, midi, start, dur, level=.045){
 }
 
 function scheduleChordPad(ctx, sorted, start, beatSec, playFromBeat=0){
-  if(!state.chordPadEnabled) return;
-
   const segments = buildChordSegments(sorted);
 
   for(const seg of segments){
@@ -3229,29 +3230,31 @@ async function play(){
   }, Math.max(0,(start+(endBeat-playFromBeat)*beatSec-ctx.currentTime+.3)*1000)));
 }
 
-function saveBrowser(){
-  localStorage.setItem('tenorCalculatorVexFlowCCM', JSON.stringify({state,nextId}));
-  alert('브라우저에 저장했습니다.');
-}
-
-function loadBrowser(){
-  const s = localStorage.getItem('tenorCalculatorVexFlowCCM');
-  if(!s){ alert('저장된 곡이 없습니다.'); return; }
-  try{
-    const data = JSON.parse(s);
-    state = data.state;
-    nextId = data.nextId || 1;
-    normalize();
-    syncUi();
-  }catch(e){
-    alert('브라우저 저장 데이터를 불러오지 못했습니다.');
-  }
-}
-
-function downloadJson(){
+async function saveSongAs(){
   const blob = new Blob([JSON.stringify({state,nextId}, null, 2)], {type:'application/json'});
   const safe = (state.title || 'tenor_calculator_song').replace(/[\\/:*?"<>|]/g,'_').trim() || 'tenor_calculator_song';
-  saveBlobToDevice(blob, safe + '.json');
+  const suggestedName = safe + '.json';
+
+  if(window.showSaveFilePicker){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types:[{
+          description:'JSON Song File',
+          accept:{'application/json':['.json']}
+        }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    }catch(err){
+      if(err && err.name === 'AbortError') return;
+      console.warn('Save picker failed, falling back to download.', err);
+    }
+  }
+
+  await saveBlobToDevice(blob, suggestedName);
 }
 
 function uploadJson(file){
@@ -3288,8 +3291,8 @@ function normalize(){
   if(state.masterVolume === undefined || state.masterVolume === null) state.masterVolume = 0.82;
   state.masterVolume = clamp(Number(state.masterVolume), 0, 1);
   if(!state.instrumentMelody) state.instrumentMelody = 'piano';
-  if(!state.instrumentTenor) state.instrumentTenor = 'electricPiano';
-  if(!state.instrumentAlto) state.instrumentAlto = 'organ';
+  if(!state.instrumentTenor) state.instrumentTenor = state.instrumentMelody;
+  if(!state.instrumentAlto) state.instrumentAlto = state.instrumentMelody;
   if(!state.instrumentChordPad) state.instrumentChordPad = 'synthPad';
   if(state.triplet === undefined) state.triplet = false;
   if(!state.accidental) state.accidental = 'auto';
@@ -3348,9 +3351,7 @@ function initEvents(){
       updateStatus();
     });
   }
-  melodyInstrumentSelect.addEventListener('change', ()=>{ state.instrumentMelody = melodyInstrumentSelect.value; updateStatus(); });
-  tenorInstrumentSelect.addEventListener('change', ()=>{ state.instrumentTenor = tenorInstrumentSelect.value; updateStatus(); });
-  altoInstrumentSelect.addEventListener('change', ()=>{ state.instrumentAlto = altoInstrumentSelect.value; updateStatus(); });
+  melodyInstrumentSelect.addEventListener('change', ()=>{ state.instrumentMelody = melodyInstrumentSelect.value; state.instrumentTenor = state.instrumentMelody; state.instrumentAlto = state.instrumentMelody; updateStatus(); });
   chordPadInstrumentSelect.addEventListener('change', ()=>{ state.instrumentChordPad = chordPadInstrumentSelect.value; updateStatus(); });
 
   document.querySelectorAll('.note-length').forEach(b=>b.addEventListener('click',()=>{ state.inputKind='note'; state.duration=Number(b.dataset.duration); syncUi(); }));
@@ -3359,7 +3360,7 @@ function initEvents(){
   document.getElementById('tripletBtn').addEventListener('click',()=>{ state.triplet=!state.triplet; syncUi(); });
   document.querySelectorAll('.accidental-mode').forEach(b=>b.addEventListener('click',()=>{ state.accidental=b.dataset.accidental; syncUi(); }));
 
-  [chordRootSelect,chordAccSelect,chordTypeSelect,chordExtSelect,chordAddSelect,chordAltSelect,slashBassSelect].forEach(el=>{
+  [chordRootSelect,chordTypeSelect,chordFlavorSelect,slashBassSelect].forEach(el=>{
     el.addEventListener('change', updateChordOptions);
   });
 
@@ -3380,10 +3381,6 @@ function initEvents(){
     render();
   }));
 
-  document.getElementById('chordPadBtn').addEventListener('click', ()=>{
-    state.chordPadEnabled = !state.chordPadEnabled;
-    syncUi();
-  });
   document.getElementById('playBtn').addEventListener('click', play);
   document.getElementById('stopBtn').addEventListener('click', stopPlayback);
   document.getElementById('downloadAudioBtn').addEventListener('click', downloadAudioWav);
@@ -3397,13 +3394,12 @@ function initEvents(){
     render();
   });
 
-  document.getElementById('saveBrowserBtn').addEventListener('click', saveBrowser);
-  document.getElementById('loadBrowserBtn').addEventListener('click', loadBrowser);
-  document.getElementById('downloadJsonBtn').addEventListener('click', downloadJson);
-  document.getElementById('uploadJsonBtn').addEventListener('click', ()=>document.getElementById('uploadJsonInput').click());
+  document.getElementById('saveBrowserBtn').addEventListener('click', saveSongAs);
+  document.getElementById('loadBrowserBtn').addEventListener('click', ()=>document.getElementById('uploadJsonInput').click());
   document.getElementById('uploadJsonInput').addEventListener('change', e=>{
     const f = e.target.files[0];
     if(f) uploadJson(f);
+    e.target.value = '';
   });
 
   scoreWrap.addEventListener('touchstart', e=>{
@@ -3576,6 +3572,14 @@ function initEvents(){
       return;
     }
 
+    if(ctrl && e.key.toLowerCase() === 'x'){
+      e.preventDefault();
+      if(selectedChordEvents().length) copySelectedChords();
+      else copySelectedEvents();
+      deleteSelected();
+      return;
+    }
+
     if(ctrl && e.key.toLowerCase() === 'z'){
       e.preventDefault();
       if(e.shiftKey) redo();
@@ -3586,6 +3590,12 @@ function initEvents(){
     if(ctrl && e.key.toLowerCase() === 'y'){
       e.preventDefault();
       redo();
+      return;
+    }
+
+    if(e.key === 'Delete' || e.key === 'Backspace'){
+      e.preventDefault();
+      deleteSelected();
       return;
     }
   });
