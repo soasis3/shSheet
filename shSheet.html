@@ -3987,6 +3987,7 @@ function uploadMusicXml(file){
       normalize();
       undoStack = [];
       redoStack = [];
+      resetResponsiveView();
       syncUi();
       alert(`MusicXML import complete: ${state.events.length} events loaded.`);
     }catch(err){
