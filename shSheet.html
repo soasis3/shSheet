@@ -928,16 +928,36 @@ function updateUndoRedoButtons(){
   if(redoBtn) redoBtn.disabled = redoStack.length === 0;
 }
 
+function isMobileCompactViewport(){
+  return !!(
+    window.matchMedia &&
+    (
+      window.matchMedia('(max-width: 820px)').matches ||
+      window.matchMedia('(hover: none) and (pointer: coarse)').matches
+    )
+  );
+}
+
+function enforceMobileSelectMode(){
+  if(isMobileCompactViewport()) state.editMode = 'select';
+}
+
+function effectiveEditMode(){
+  return isMobileCompactViewport() ? 'select' : (state.editMode || 'edit');
+}
+
 function setEditMode(mode){
+  if(isMobileCompactViewport()) mode = 'select';
   state.editMode = ['edit','add','select'].includes(mode) ? mode : 'edit';
 
   const edit = document.getElementById('editModeBtn');
   const add = document.getElementById('addModeBtn');
   const select = document.getElementById('selectModeBtn');
 
-  if(edit) edit.classList.toggle('active', state.editMode === 'edit');
-  if(add) add.classList.toggle('active', state.editMode === 'add');
-  if(select) select.classList.toggle('active', state.editMode === 'select');
+  const modeNow = effectiveEditMode();
+  if(edit) edit.classList.toggle('active', modeNow === 'edit');
+  if(add) add.classList.toggle('active', modeNow === 'add');
+  if(select) select.classList.toggle('active', modeNow === 'select');
 
   updateStatus();
 }
@@ -2788,10 +2808,12 @@ function updateStatus(){
   let copiedText = '';
   if(copiedMode === 'chords' && copiedChordItems.length) copiedText = ` | Copied chords: ${copiedChordItems.length}`;
   else if(copiedMode === 'events' && copiedEvents.length) copiedText = ` | Copied notes: ${copiedEvents.length}`;
-  const modeLabel = state.editMode === 'select' ? 'Select' : (state.editMode === 'add' ? 'Add' : 'Edit');
+  const mode = effectiveEditMode();
+  const modeLabel = mode === 'select' ? 'Select' : (mode === 'add' ? 'Add' : 'Edit');
   statusEl.textContent = `Mode: ${modeLabel} | ${noteSelectionText} | ${chordSelectionText}${measureSelectionText}${copiedText} | Voices: ${voices.join(' + ') || 'None'} | Edit: ${editVoice} | Inst: ${(state.instrumentMelody || 'piano')} | Pad: ${(state.instrumentChordPad || 'synthPad')} ${Math.round((state.chordPadVolume ?? 0.38) * 100)}% | Master: ${Math.round((state.masterVolume ?? 0.82) * 100)}% | Harmony: ${harmonyStyleConfig().name}${state.triplet ? ' | Triplet ON' : ''}`;
 }
 function syncUi(){
+  enforceMobileSelectMode();
   titleInput.value = state.title;
   keyRootSelect.value = state.keyRoot;
   keyModeSelect.value = state.keyMode;
@@ -3953,6 +3975,8 @@ function normalize(){
     if(!e.rest && !e.accidental) e.accidental = 'auto';
   }
 
+  enforceMobileSelectMode();
+
   ensureSelectionState();
   ensureChordSelectionState();
   normalizeTimeChanges();
@@ -4108,6 +4132,7 @@ function initEvents(){
 
   hitLayer.addEventListener('pointerdown', e=>{
     if(viewState.gestureActive) return;
+    const mode = effectiveEditMode();
     const point = clientPointToScore(e.clientX, e.clientY);
     const x = point.x;
     const y = point.y;
@@ -4126,7 +4151,7 @@ function initEvents(){
       selectEvent(hit.id, additive);
 
       // Select 모드에서는 추가/수정/드래그를 절대 하지 않는다.
-      if(state.editMode === 'select' || state.editMode === 'add'){
+      if(mode === 'select' || mode === 'add'){
         drag = {active:false,id:null,historyPushed:false};
         selectionDrag.active = false;
         return;
@@ -4140,7 +4165,7 @@ function initEvents(){
       return;
     }
 
-    if(state.editMode === 'select'){
+    if(mode === 'select'){
       const box = findMeasureBox(x,y);
       if(box) setSelectedMeasure(box.measure);
       selectionDrag = {
@@ -4159,7 +4184,7 @@ function initEvents(){
       return;
     }
 
-    if(state.editMode !== 'add') return;
+    if(mode !== 'add') return;
 
     const box = findMeasureBox(x,y);
     if(!box) return;
@@ -4175,6 +4200,7 @@ function initEvents(){
 
   hitLayer.addEventListener('pointermove', e=>{
     if(viewState.gestureActive) return;
+    const mode = effectiveEditMode();
     const point = clientPointToScore(e.clientX, e.clientY);
     const x = point.x;
     const y = point.y;
@@ -4188,7 +4214,7 @@ function initEvents(){
       return;
     }
 
-    if(!drag.active || state.editMode !== 'edit') return;
+    if(!drag.active || mode !== 'edit') return;
 
     const ev = eventById(drag.id);
     if(!ev || ev.rest) return;
@@ -4310,9 +4336,14 @@ function init(){
   syncUi();
 }
 
+function handleViewportChange(){
+  enforceMobileSelectMode();
+  scheduleResponsiveRender();
+}
+
 window.addEventListener('load', init);
-window.addEventListener('resize', scheduleResponsiveRender);
-window.addEventListener('orientationchange', scheduleResponsiveRender);
+window.addEventListener('resize', handleViewportChange);
+window.addEventListener('orientationchange', handleViewportChange);
 
 })();
 </script>
