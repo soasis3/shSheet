@@ -102,14 +102,18 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
   #titleInput{width:min(100%, 220px)}
   #scoreWrap{height:64vh;max-height:none;min-height:420px}
   #scoreViewport{min-height:420px}
+  #scoreWrap,
+  #scoreViewport,
+  #scoreSurface,
+  #hitLayer{
+    touch-action:none;
+  }
   .mobile-hide{display:none !important}
   .mobile-only-compact{display:inline-flex}
   .toolbar{
-    display:flex;
-    flex-wrap:nowrap;
-    align-items:center;
-    gap:0;
-    overflow-x:auto;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:5px;
     background:var(--panel);
     border:1px solid var(--line);
     border-radius:10px;
@@ -117,16 +121,17 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
   }
   #songRow,
   #chordRow{
-    display:contents;
-  }
-  #notesPanel{display:none !important}
-  #songRow,
-  #chordRow,
-  .toolbar > button{
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    gap:0;
+    overflow-x:auto;
     background:transparent;
     border:0;
+    border-radius:0;
     padding:0;
   }
+  #notesPanel{display:none !important}
   .toolbar button{
     min-width:46px;
     min-height:38px;
@@ -4183,6 +4188,18 @@ function initEvents(){
 
   scoreWrap.addEventListener('touchcancel', ()=>{
     endTouchGesture();
+  }, {passive:false});
+
+  let lastTapTime = 0;
+  scoreWrap.addEventListener('dblclick', e=>{
+    e.preventDefault();
+  });
+  scoreWrap.addEventListener('touchend', e=>{
+    const now = Date.now();
+    if(now - lastTapTime < 320){
+      e.preventDefault();
+    }
+    lastTapTime = now;
   }, {passive:false});
 
   hitLayer.addEventListener('pointerdown', e=>{
