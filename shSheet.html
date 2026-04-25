@@ -104,12 +104,35 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
   #scoreViewport{min-height:420px}
   .mobile-hide{display:none !important}
   .mobile-only-compact{display:inline-flex}
-  .toolbar{display:grid;grid-template-columns:1fr}
-  #notesPanel{display:none !important}
+  .toolbar{
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    gap:0;
+    overflow-x:auto;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:7px;
+  }
+  #songRow,
   #chordRow{
-    justify-content:flex-start;
-    gap:6px;
-    padding:8px;
+    display:contents;
+  }
+  #notesPanel{display:none !important}
+  #songRow,
+  #chordRow,
+  .toolbar > button{
+    background:transparent;
+    border:0;
+    padding:0;
+  }
+  .toolbar button{
+    min-width:46px;
+    min-height:38px;
+    padding:7px 8px;
+    margin-right:6px;
+    flex:0 0 auto;
   }
 }
 @media (max-width: 520px){
@@ -129,6 +152,8 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <button id="newBtn" class="mobile-hide">New</button>
       <button id="saveBrowserBtn" class="mobile-hide">Save</button>
       <button id="loadBrowserBtn">Open</button>
+      <button id="mobileEditModeBtn" class="note-btn compact-btn mobile-only-compact" title="Edit mode">Edit</button>
+      <button id="mobileSelectModeBtn" class="note-btn compact-btn mobile-only-compact" title="Select mode">Sel</button>
       <button id="importXmlBtn" class="mobile-hide">MXML</button>
       <label class="mobile-hide">Title</label><input id="titleInput" class="mobile-hide" type="text" value="Untitled Song" />
       <label class="mobile-hide">Key</label>
@@ -184,8 +209,8 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <button id="applyChordBtn" class="mobile-hide">Add</button>
       <button id="removeChordBtn" class="mobile-hide">Del</button>
       <button class="view-btn voice-view active mobile-hide" data-voice="all">ALL</button>
-      <button class="view-btn voice-view active mobile-hide" data-voice="melody">Mel</button>
-      <button class="view-btn voice-view active mobile-hide" data-voice="tenor">Ten</button>
+      <button class="view-btn voice-view active" data-voice="melody">Mel</button>
+      <button class="view-btn voice-view active" data-voice="tenor">Ten</button>
       <button class="view-btn voice-view active mobile-hide" data-voice="alto">Alt</button>
       <button id="rewindBtn" class="transport-btn compact-btn">RW</button>
       <button id="playBtn" class="transport-btn compact-btn">PLAY</button>
@@ -939,25 +964,30 @@ function isMobileCompactViewport(){
 }
 
 function enforceMobileSelectMode(){
-  if(isMobileCompactViewport()) state.editMode = 'select';
+  if(isMobileCompactViewport() && state.editMode === 'add') state.editMode = 'select';
 }
 
 function effectiveEditMode(){
-  return isMobileCompactViewport() ? 'select' : (state.editMode || 'edit');
+  const mode = state.editMode || 'edit';
+  return isMobileCompactViewport() && mode === 'add' ? 'select' : mode;
 }
 
 function setEditMode(mode){
-  if(isMobileCompactViewport()) mode = 'select';
+  if(isMobileCompactViewport() && mode === 'add') mode = 'select';
   state.editMode = ['edit','add','select'].includes(mode) ? mode : 'edit';
 
   const edit = document.getElementById('editModeBtn');
   const add = document.getElementById('addModeBtn');
   const select = document.getElementById('selectModeBtn');
+  const mobileEdit = document.getElementById('mobileEditModeBtn');
+  const mobileSelect = document.getElementById('mobileSelectModeBtn');
 
   const modeNow = effectiveEditMode();
   if(edit) edit.classList.toggle('active', modeNow === 'edit');
   if(add) add.classList.toggle('active', modeNow === 'add');
   if(select) select.classList.toggle('active', modeNow === 'select');
+  if(mobileEdit) mobileEdit.classList.toggle('active', modeNow === 'edit');
+  if(mobileSelect) mobileSelect.classList.toggle('active', modeNow === 'select');
 
   updateStatus();
 }
@@ -3986,6 +4016,8 @@ function initEvents(){
   document.getElementById('editModeBtn').addEventListener('click', ()=>setEditMode('edit'));
   document.getElementById('addModeBtn').addEventListener('click', ()=>setEditMode('add'));
   document.getElementById('selectModeBtn').addEventListener('click', ()=>setEditMode('select'));
+  document.getElementById('mobileEditModeBtn').addEventListener('click', ()=>setEditMode('edit'));
+  document.getElementById('mobileSelectModeBtn').addEventListener('click', ()=>setEditMode('select'));
   document.getElementById('undoBtn').addEventListener('click', undo);
   document.getElementById('redoBtn').addEventListener('click', redo);
 
