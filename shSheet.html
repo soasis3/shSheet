@@ -134,6 +134,14 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
     margin-right:6px;
     flex:0 0 auto;
   }
+  .mobile-divider{
+    display:inline-block;
+    width:1px;
+    height:24px;
+    margin:0 6px 0 0;
+    background:var(--line);
+    flex:0 0 auto;
+  }
 }
 @media (max-width: 520px){
   #app{padding:8px}
@@ -152,8 +160,11 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <button id="newBtn" class="mobile-hide">New</button>
       <button id="saveBrowserBtn" class="mobile-hide">Save</button>
       <button id="loadBrowserBtn">Open</button>
+      <span class="mobile-divider mobile-only-compact" aria-hidden="true"></span>
+      <button id="mobileHandModeBtn" class="note-btn compact-btn mobile-only-compact active" title="Navigation mode">Hand</button>
       <button id="mobileEditModeBtn" class="note-btn compact-btn mobile-only-compact" title="Edit mode">Edit</button>
       <button id="mobileSelectModeBtn" class="note-btn compact-btn mobile-only-compact" title="Select mode">Sel</button>
+      <span class="mobile-divider mobile-only-compact" aria-hidden="true"></span>
       <button id="importXmlBtn" class="mobile-hide">MXML</button>
       <label class="mobile-hide">Title</label><input id="titleInput" class="mobile-hide" type="text" value="Untitled Song" />
       <label class="mobile-hide">Key</label>
@@ -211,6 +222,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <button class="view-btn voice-view active mobile-hide" data-voice="all">ALL</button>
       <button class="view-btn voice-view active" data-voice="melody">Mel</button>
       <button class="view-btn voice-view active" data-voice="tenor">Ten</button>
+      <span class="mobile-divider mobile-only-compact" aria-hidden="true"></span>
       <button class="view-btn voice-view active mobile-hide" data-voice="alto">Alt</button>
       <button id="rewindBtn" class="transport-btn compact-btn">RW</button>
       <button id="playBtn" class="transport-btn compact-btn">PLAY</button>
@@ -434,6 +446,7 @@ let currentAudioContext = null;
 let playbackTimers = [];
 let drag = {active:false,id:null,historyPushed:false};
 let selectionDrag = {active:false,startX:0,startY:0,lastX:0,lastY:0,additive:false,baseNoteIds:[],baseChordIds:[],boxEl:null};
+let handPan = {active:false,lastX:0,lastY:0};
 let undoStack = [];
 let redoStack = [];
 let copiedEvents = [];
@@ -749,6 +762,7 @@ function beginTouchGesture(touches){
   viewState.gestureActive = true;
   drag = {active:false,id:null,historyPushed:false};
   selectionDrag.active = false;
+  handPan.active = false;
 }
 
 function moveTouchGesture(touches){
@@ -964,21 +978,22 @@ function isMobileCompactViewport(){
 }
 
 function enforceMobileSelectMode(){
-  if(isMobileCompactViewport() && state.editMode === 'add') state.editMode = 'select';
+  if(isMobileCompactViewport() && state.editMode === 'add') state.editMode = 'hand';
 }
 
 function effectiveEditMode(){
   const mode = state.editMode || 'edit';
-  return isMobileCompactViewport() && mode === 'add' ? 'select' : mode;
+  return isMobileCompactViewport() && mode === 'add' ? 'hand' : mode;
 }
 
 function setEditMode(mode){
-  if(isMobileCompactViewport() && mode === 'add') mode = 'select';
-  state.editMode = ['edit','add','select'].includes(mode) ? mode : 'edit';
+  if(isMobileCompactViewport() && mode === 'add') mode = 'hand';
+  state.editMode = ['hand','edit','add','select'].includes(mode) ? mode : 'edit';
 
   const edit = document.getElementById('editModeBtn');
   const add = document.getElementById('addModeBtn');
   const select = document.getElementById('selectModeBtn');
+  const mobileHand = document.getElementById('mobileHandModeBtn');
   const mobileEdit = document.getElementById('mobileEditModeBtn');
   const mobileSelect = document.getElementById('mobileSelectModeBtn');
 
@@ -986,6 +1001,7 @@ function setEditMode(mode){
   if(edit) edit.classList.toggle('active', modeNow === 'edit');
   if(add) add.classList.toggle('active', modeNow === 'add');
   if(select) select.classList.toggle('active', modeNow === 'select');
+  if(mobileHand) mobileHand.classList.toggle('active', modeNow === 'hand');
   if(mobileEdit) mobileEdit.classList.toggle('active', modeNow === 'edit');
   if(mobileSelect) mobileSelect.classList.toggle('active', modeNow === 'select');
 
@@ -2839,7 +2855,7 @@ function updateStatus(){
   if(copiedMode === 'chords' && copiedChordItems.length) copiedText = ` | Copied chords: ${copiedChordItems.length}`;
   else if(copiedMode === 'events' && copiedEvents.length) copiedText = ` | Copied notes: ${copiedEvents.length}`;
   const mode = effectiveEditMode();
-  const modeLabel = mode === 'select' ? 'Select' : (mode === 'add' ? 'Add' : 'Edit');
+  const modeLabel = mode === 'hand' ? 'Hand' : (mode === 'select' ? 'Select' : (mode === 'add' ? 'Add' : 'Edit'));
   statusEl.textContent = `Mode: ${modeLabel} | ${noteSelectionText} | ${chordSelectionText}${measureSelectionText}${copiedText} | Voices: ${voices.join(' + ') || 'None'} | Edit: ${editVoice} | Inst: ${(state.instrumentMelody || 'piano')} | Pad: ${(state.instrumentChordPad || 'synthPad')} ${Math.round((state.chordPadVolume ?? 0.38) * 100)}% | Master: ${Math.round((state.masterVolume ?? 0.82) * 100)}% | Harmony: ${harmonyStyleConfig().name}${state.triplet ? ' | Triplet ON' : ''}`;
 }
 function syncUi(){
@@ -3973,7 +3989,7 @@ function normalize(){
   if(!state.events) state.events = [];
   if(!state.voiceMask) state.voiceMask = {melody:true,tenor:true,alto:true};
   if(state.chordPadEnabled === undefined) state.chordPadEnabled = false;
-  if(!state.editMode || !['edit','add','select'].includes(state.editMode)) state.editMode = 'edit';
+  if(!state.editMode || !['hand','edit','add','select'].includes(state.editMode)) state.editMode = 'edit';
   if(!Array.isArray(state.timeChanges)) state.timeChanges = [];
   if(state.selectedMeasure === undefined) state.selectedMeasure = null;
   if(state.selectedId === undefined) state.selectedId = null;
@@ -4005,6 +4021,7 @@ function normalize(){
     if(!e.rest && !e.accidental) e.accidental = 'auto';
   }
 
+  if(isMobileCompactViewport() && state.editMode === 'edit') state.editMode = 'hand';
   enforceMobileSelectMode();
 
   ensureSelectionState();
@@ -4016,6 +4033,7 @@ function initEvents(){
   document.getElementById('editModeBtn').addEventListener('click', ()=>setEditMode('edit'));
   document.getElementById('addModeBtn').addEventListener('click', ()=>setEditMode('add'));
   document.getElementById('selectModeBtn').addEventListener('click', ()=>setEditMode('select'));
+  document.getElementById('mobileHandModeBtn').addEventListener('click', ()=>setEditMode('hand'));
   document.getElementById('mobileEditModeBtn').addEventListener('click', ()=>setEditMode('edit'));
   document.getElementById('mobileSelectModeBtn').addEventListener('click', ()=>setEditMode('select'));
   document.getElementById('undoBtn').addEventListener('click', undo);
@@ -4165,6 +4183,13 @@ function initEvents(){
   hitLayer.addEventListener('pointerdown', e=>{
     if(viewState.gestureActive) return;
     const mode = effectiveEditMode();
+    if(mode === 'hand'){
+      drag = {active:false,id:null,historyPushed:false};
+      selectionDrag.active = false;
+      handPan = {active:true,lastX:e.clientX,lastY:e.clientY};
+      try{ hitLayer.setPointerCapture(e.pointerId); }catch(err){}
+      return;
+    }
     const point = clientPointToScore(e.clientX, e.clientY);
     const x = point.x;
     const y = point.y;
@@ -4233,6 +4258,18 @@ function initEvents(){
   hitLayer.addEventListener('pointermove', e=>{
     if(viewState.gestureActive) return;
     const mode = effectiveEditMode();
+
+    if(handPan.active){
+      viewState.userInteracted = true;
+      viewState.panX += e.clientX - handPan.lastX;
+      viewState.panY += e.clientY - handPan.lastY;
+      handPan.lastX = e.clientX;
+      handPan.lastY = e.clientY;
+      clampViewPan();
+      applyViewTransform();
+      return;
+    }
+
     const point = clientPointToScore(e.clientX, e.clientY);
     const x = point.x;
     const y = point.y;
@@ -4267,6 +4304,11 @@ function initEvents(){
 
   hitLayer.addEventListener('pointerup', e=>{
     if(viewState.gestureActive) return;
+    if(handPan.active){
+      handPan.active = false;
+      try{ hitLayer.releasePointerCapture(e.pointerId); }catch(err){}
+      return;
+    }
     if(selectionDrag.active){
       const dx = Math.abs(selectionDrag.lastX - selectionDrag.startX);
       const dy = Math.abs(selectionDrag.lastY - selectionDrag.startY);
@@ -4293,6 +4335,7 @@ function initEvents(){
   hitLayer.addEventListener('pointercancel', ()=>{
     drag = {active:false,id:null,historyPushed:false};
     selectionDrag.active = false;
+    handPan.active = false;
     clearSelectionBox();
   });
 
