@@ -862,6 +862,12 @@ function clearSelectedMeasure(){
   state.selectedMeasure = null;
 }
 
+function clearAllSelections(){
+  clearSelection();
+  clearChordSelection();
+  clearSelectedMeasure();
+}
+
 function selectedEvent(){
   ensureSelectionState();
   return state.selectedId === null ? null : eventById(state.selectedId);
@@ -989,6 +995,7 @@ function effectiveEditMode(){
 function setEditMode(mode){
   if(isMobileCompactViewport() && mode === 'add') mode = 'hand';
   state.editMode = ['hand','edit','add','select'].includes(mode) ? mode : 'edit';
+  if(effectiveEditMode() === 'hand') clearAllSelections();
 
   const edit = document.getElementById('editModeBtn');
   const add = document.getElementById('addModeBtn');
@@ -4138,9 +4145,7 @@ function initEvents(){
     stopPlayback();
     scoreWrap.scrollLeft = 0;
     scoreWrap.scrollTop = 0;
-    const first = state.events.length ? [...state.events].sort((a,b)=>a.startBeat-b.startBeat)[0].id : null;
-    setSelection(first === null ? [] : [first]);
-    clearChordSelection();
+    clearAllSelections();
     render();
   });
 
