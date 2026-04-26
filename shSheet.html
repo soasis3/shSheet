@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Tenor Calculator - VexFlow Natural Beam Fixed</title>
 <script src="https://unpkg.com/vexflow@4.2.2/releases/vexflow-debug.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{
   --bg:#101217; --panel:#1c212a; --panel2:#252b36; --panel3:#11151d;
@@ -198,7 +199,7 @@ button.active{background:var(--accent);border-color:var(--accent);color:#07101d;
       <button id="copyBtn" class="mobile-hide">Copy</button>
       <button id="pasteBtn" class="mobile-hide">Paste</button>
       <input id="uploadJsonInput" type="file" accept=".json" style="display:none" />
-      <input id="uploadMusicXmlInput" type="file" accept=".musicxml,.xml,application/xml,text/xml" style="display:none" />
+      <input id="uploadMusicXmlInput" type="file" accept=".musicxml,.xml,.mxl,application/xml,text/xml,application/vnd.recordare.musicxml" style="display:none" />
     </div>
 
     <div class="row" id="chordRow">
@@ -3977,19 +3978,60 @@ function parseMusicXml(text){
   return {state: importedState, nextId: nextIdLocal};
 }
 
+function isMxlFile(file){
+  return !!(file && /\.mxl$/i.test(file.name || ''));
+}
+
+async function readMusicXmlText(file){
+  if(!isMxlFile(file)) return await file.text();
+  if(!window.JSZip) throw new Error('JSZip is required to open compressed MusicXML.');
+
+  const zip = await window.JSZip.loadAsync(await file.arrayBuffer());
+  let rootPath = '';
+  const container = zip.file('META-INF/container.xml');
+
+  if(container){
+    const containerText = await container.async('text');
+    const containerDoc = new DOMParser().parseFromString(containerText, 'application/xml');
+    const rootFile = containerDoc.querySelector('rootfile');
+    rootPath = rootFile ? (rootFile.getAttribute('full-path') || '') : '';
+  }
+
+  const musicXmlFile = rootPath && zip.file(rootPath)
+    ? zip.file(rootPath)
+    : zip.file(/\.musicxml$|\.xml$/i).find(f => !/^META-INF\//i.test(f.name));
+
+  if(!musicXmlFile) throw new Error('No MusicXML file found inside MXL.');
+  return await musicXmlFile.async('text');
+}
+
+function finishMusicXmlImport(text){
+  const data = parseMusicXml(text);
+  state = data.state;
+  nextId = data.nextId || Math.max(1, ...state.events.map(e=>e.id||0)) + 1;
+  normalize();
+  undoStack = [];
+  redoStack = [];
+  resetResponsiveView();
+  syncUi();
+  alert(`MusicXML import complete: ${state.events.length} events loaded.`);
+}
+
 function uploadMusicXml(file){
+  if(isMxlFile(file)){
+    readMusicXmlText(file)
+      .then(finishMusicXmlImport)
+      .catch(err=>{
+        console.error(err);
+        alert('MusicXML file could not be imported. This version supports score-partwise melody-focused MusicXML/MXL.');
+      });
+    return;
+  }
+
   const r = new FileReader();
   r.onload = ev=>{
     try{
-      const data = parseMusicXml(String(ev.target.result || ''));
-      state = data.state;
-      nextId = data.nextId || Math.max(1, ...state.events.map(e=>e.id||0)) + 1;
-      normalize();
-      undoStack = [];
-      redoStack = [];
-      resetResponsiveView();
-      syncUi();
-      alert(`MusicXML import complete: ${state.events.length} events loaded.`);
+      finishMusicXmlImport(String(ev.target.result || ''));
     }catch(err){
       console.error(err);
       alert('MusicXML 파일을 읽지 못했습니다. 현재 버전은 score-partwise 단선율 위주로 지원합니다.');
